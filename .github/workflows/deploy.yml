@@ -11,7 +11,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Setup SSH key
         uses: shimataro/ssh-key-action@v2
@@ -20,17 +20,14 @@ jobs:
           known_hosts: unnecessary
 
       - name: Add server to known_hosts
-        run: |
-          ssh-keyscan -H 3.10.116.8 >> ~/.ssh/known_hosts
+        run: ssh-keyscan -H 3.10.116.8 >> ~/.ssh/known_hosts
 
       - name: Test SSH Connection
-        run: |
-          ssh -o StrictHostKeyChecking=accept-new ubuntu@3.10.116.8 "echo 'SSH Connection Successful'"
+        run: ssh -o StrictHostKeyChecking=no ubuntu@3.10.116.8 "echo 'SSH Connection Successful'"
 
       - name: Deploy code to server
         run: |
-          rsync -avz --delete --exclude='.git' --include=' .env' ./ ubuntu@3.10.116.8:/home/ubuntu/scanpay --rsync-path="sudo rsync"
+          rsync -avz --delete --exclude='.git' --include='.env' ./ ubuntu@3.10.116.8:/home/ubuntu/scanpay --rsync-path="sudo rsync"
 
       - name: Restart application
-        run: |
-          ssh ubuntu@3.10.116.8 "cd /home/ubuntu/scanpay && docker-compose up --build -d"
+        run: ssh ubuntu@3.10.116.8 "cd /home/ubuntu/scanpay && sudo docker-compose up --build -d"
