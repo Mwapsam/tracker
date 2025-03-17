@@ -113,7 +113,6 @@ STORAGES = {
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "rest_framework.authentication.TokenAuthentication",
         "rest_framework.authentication.SessionAuthentication",
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ],
@@ -123,7 +122,7 @@ REST_FRAMEWORK = {
 }
 
 CORS_ALLOWED_ORIGINS = ["http://localhost:3000"]
-CSRF_TRUSTED_ORIGINS = ["https://https://test.taskcentro.com", "http://localhost:3000"]
+CSRF_TRUSTED_ORIGINS = ["https://test.taskcentro.com", "http://localhost:3000"]
 
 if not DEBUG:
     SECURE_HSTS_SECONDS = 31536000

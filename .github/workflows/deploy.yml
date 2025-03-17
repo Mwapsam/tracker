@@ -37,3 +37,5 @@ jobs:
       - name: Deploy containers
         run: |
           ssh ubuntu@3.10.116.8 "cd /home/ubuntu/tracker && docker compose up --build -d"
+    
+          

@@ -10,6 +10,6 @@ poetry.lock
 .env
 
 staticfiles/
-
+*/__pycache__/*
 
 
