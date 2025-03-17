@@ -31,3 +31,5 @@ jobs:
 
       - name: Restart application
         run: ssh ubuntu@3.10.116.8 "cd /home/ubuntu/scanpay && sudo docker-compose up --build -d"
+
+        
