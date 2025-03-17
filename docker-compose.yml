@@ -13,7 +13,7 @@ services:
 
   web:
     build: .
-    command: sh -c "python manage.py migrate && gunicorn --bind 0.0.0.0:8000 spotter.wsgi:application
+    command: sh -c "python manage.py migrate && gunicorn --bind 0.0.0.0:8000 spotter.wsgi:application"
     volumes:
       - .:/app
       - ./static:/app/static
@@ -21,5 +21,6 @@ services:
       - "8000:8000"
     depends_on:
       - db
+
 volumes:
   postgres_data:
