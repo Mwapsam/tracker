@@ -1,15 +1,101 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Box, Table } from "@radix-ui/themes";
 
+interface DutyStatus {
+  status: string;
+  start_time: string;
+  end_time: string;
+  location: {
+    lat: number;
+    lon: number;
+    name: string;
+  };
+}
+
+interface LogEntry {
+  id: number;
+  date: string;
+  vehicle: string;
+  start_odometer: number;
+  end_odometer: number;
+  total_miles: number;
+  remarks: string;
+  signature: string;
+  duty_statuses: DutyStatus[];
+}
+
+interface DailyLog {
+  date: string;
+  driving: number;
+  onDuty: number;
+  offDuty: number;
+  sleeperBerth: number;
+}
+
 export default function Home() {
+  const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
+  const [dailyLogs, setDailyLogs] = useState<DailyLog[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("http://localhost:8000/api/logs/")
+      .then((res) => res.json())
+      .then((data: LogEntry[]) => {
+        setLogEntries(data);
+        aggregateDailyLogs(data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error("Error fetching log entries", err);
+        setLoading(false);
+      });
+  }, []);
+
+  function aggregateDailyLogs(entries: LogEntry[]) {
+    const aggregation: { [date: string]: DailyLog } = {};
+    entries.forEach((entry) => {
+      const date = entry.date;
+      if (!aggregation[date]) {
+        aggregation[date] = {
+          date,
+          driving: 0,
+          onDuty: 0,
+          offDuty: 0,
+          sleeperBerth: 0,
+        };
+      }
+      entry.duty_statuses.forEach((ds) => {
+        const duration =
+          (new Date(ds.end_time).getTime() -
+            new Date(ds.start_time).getTime()) /
+          (3600 * 1000);
+        switch (ds.status) {
+          case "D":
+            aggregation[date].driving += duration;
+            break;
+          case "ON":
+            aggregation[date].onDuty += duration;
+            break;
+          case "OFF":
+            aggregation[date].offDuty += duration;
+            break;
+          case "SB":
+            aggregation[date].sleeperBerth += duration;
+            break;
+          default:
+            break;
+        }
+      });
+    });
+    setDailyLogs(Object.values(aggregation));
+  }
+
   return (
     <Box
-      style={{
-        background: "var(--gray-a2)",
-        borderRadius: "var(--radius-3)",
-      }}
+      className="p-4 rounded-md"
+      style={{ background: "var(--gray-a2)", borderRadius: "var(--radius-3)" }}
     >
       <nav style={{ marginBottom: "1rem" }}>
         <a href="#" style={{ marginRight: "1rem" }}>
@@ -22,104 +108,97 @@ export default function Home() {
       </nav>
 
       <section style={{ display: "grid", gap: "1rem", padding: "1rem" }}>
-        {/* 1) Table for TRIP DETAILS */}
+        {/* Trip Details Table */}
         <Box>
-          <h2 style={{ marginBottom: "0.5rem" }}>Trip Details (Dummy Data)</h2>
-          <Table.Root variant="surface">
-            <Table.Header>
-              <Table.Row>
-                <Table.ColumnHeaderCell>Trip #</Table.ColumnHeaderCell>
-                <Table.ColumnHeaderCell>Driver</Table.ColumnHeaderCell>
-                <Table.ColumnHeaderCell>
-                  Current Location
-                </Table.ColumnHeaderCell>
-                <Table.ColumnHeaderCell>Pickup Location</Table.ColumnHeaderCell>
-                <Table.ColumnHeaderCell>
-                  Dropoff Location
-                </Table.ColumnHeaderCell>
-                <Table.ColumnHeaderCell>Cycle Hrs Used</Table.ColumnHeaderCell>
-                <Table.ColumnHeaderCell>
-                  Total Distance (miles)
-                </Table.ColumnHeaderCell>
-              </Table.Row>
-            </Table.Header>
-            <Table.Body>
-              <Table.Row>
-                <Table.RowHeaderCell>1</Table.RowHeaderCell>
-                <Table.Cell>Jane Driver</Table.Cell>
-                <Table.Cell>Dallas, TX</Table.Cell>
-                <Table.Cell>Fort Worth, TX</Table.Cell>
-                <Table.Cell>Oklahoma City, OK</Table.Cell>
-                <Table.Cell>24.0</Table.Cell>
-                <Table.Cell>200</Table.Cell>
-              </Table.Row>
-
-              <Table.Row>
-                <Table.RowHeaderCell>2</Table.RowHeaderCell>
-                <Table.Cell>John Hauler</Table.Cell>
-                <Table.Cell>Atlanta, GA</Table.Cell>
-                <Table.Cell>Decatur, GA</Table.Cell>
-                <Table.Cell>Nashville, TN</Table.Cell>
-                <Table.Cell>48.5</Table.Cell>
-                <Table.Cell>300</Table.Cell>
-              </Table.Row>
-
-              <Table.Row>
-                <Table.RowHeaderCell>3</Table.RowHeaderCell>
-                <Table.Cell>Maria Roadster</Table.Cell>
-                <Table.Cell>Chicago, IL</Table.Cell>
-                <Table.Cell>Joliet, IL</Table.Cell>
-                <Table.Cell>St. Louis, MO</Table.Cell>
-                <Table.Cell>63.0</Table.Cell>
-                <Table.Cell>280</Table.Cell>
-              </Table.Row>
-            </Table.Body>
-          </Table.Root>
+          <h2 style={{ marginBottom: "0.5rem" }}>Trip Details</h2>
+          {loading ? (
+            <p>Loading...</p>
+          ) : (
+            <Table.Root variant="surface">
+              <Table.Header>
+                <Table.Row>
+                  <Table.ColumnHeaderCell>Trip #</Table.ColumnHeaderCell>
+                  <Table.ColumnHeaderCell>Driver</Table.ColumnHeaderCell>
+                  <Table.ColumnHeaderCell>
+                    Current Location
+                  </Table.ColumnHeaderCell>
+                  <Table.ColumnHeaderCell>
+                    Pickup Location
+                  </Table.ColumnHeaderCell>
+                  <Table.ColumnHeaderCell>
+                    Dropoff Location
+                  </Table.ColumnHeaderCell>
+                  <Table.ColumnHeaderCell>
+                    Cycle Hrs Used
+                  </Table.ColumnHeaderCell>
+                  <Table.ColumnHeaderCell>
+                    Total Distance (miles)
+                  </Table.ColumnHeaderCell>
+                </Table.Row>
+              </Table.Header>
+              <Table.Body>
+                {logEntries.map((entry) => {
+                  const firstStatus = entry.duty_statuses[0];
+                  const lastStatus =
+                    entry.duty_statuses[entry.duty_statuses.length - 1];
+                  return (
+                    <Table.Row key={entry.id}>
+                      <Table.RowHeaderCell>{entry.id}</Table.RowHeaderCell>
+                      <Table.Cell>{entry.signature}</Table.Cell>
+                      <Table.Cell>
+                        {lastStatus ? lastStatus.location.name : "N/A"}
+                      </Table.Cell>
+                      <Table.Cell>
+                        {firstStatus ? firstStatus.location.name : "N/A"}
+                      </Table.Cell>
+                      <Table.Cell>
+                        {lastStatus ? lastStatus.location.name : "N/A"}
+                      </Table.Cell>
+                      <Table.Cell>{"N/A"}</Table.Cell>
+                      <Table.Cell>{entry.total_miles}</Table.Cell>
+                    </Table.Row>
+                  );
+                })}
+              </Table.Body>
+            </Table.Root>
+          )}
         </Box>
 
-        {/* 2) Table for DAILY LOGS */}
+        {/* Daily Logs Table */}
         <Box>
-          <h2 style={{ marginBottom: "0.5rem" }}>Daily Logs (Dummy Data)</h2>
-          <Table.Root variant="surface">
-            <Table.Header>
-              <Table.Row>
-                <Table.ColumnHeaderCell>Date</Table.ColumnHeaderCell>
-                <Table.ColumnHeaderCell>Driving (hrs)</Table.ColumnHeaderCell>
-                <Table.ColumnHeaderCell>
-                  On Duty, Not Driving (hrs)
-                </Table.ColumnHeaderCell>
-                <Table.ColumnHeaderCell>Off Duty (hrs)</Table.ColumnHeaderCell>
-                <Table.ColumnHeaderCell>
-                  Sleeper Berth (hrs)
-                </Table.ColumnHeaderCell>
-              </Table.Row>
-            </Table.Header>
-            <Table.Body>
-              <Table.Row>
-                <Table.RowHeaderCell>2023-10-01</Table.RowHeaderCell>
-                <Table.Cell>8.5</Table.Cell>
-                <Table.Cell>2.0</Table.Cell>
-                <Table.Cell>13.5</Table.Cell>
-                <Table.Cell>0</Table.Cell>
-              </Table.Row>
-
-              <Table.Row>
-                <Table.RowHeaderCell>2023-10-02</Table.RowHeaderCell>
-                <Table.Cell>9.0</Table.Cell>
-                <Table.Cell>3.0</Table.Cell>
-                <Table.Cell>12.0</Table.Cell>
-                <Table.Cell>0</Table.Cell>
-              </Table.Row>
-
-              <Table.Row>
-                <Table.RowHeaderCell>2023-10-03</Table.RowHeaderCell>
-                <Table.Cell>7.5</Table.Cell>
-                <Table.Cell>4.0</Table.Cell>
-                <Table.Cell>10.5</Table.Cell>
-                <Table.Cell>2.0</Table.Cell>
-              </Table.Row>
-            </Table.Body>
-          </Table.Root>
+          <h2 style={{ marginBottom: "0.5rem" }}>Daily Logs</h2>
+          {loading ? (
+            <p>Loading...</p>
+          ) : (
+            <Table.Root variant="surface">
+              <Table.Header>
+                <Table.Row>
+                  <Table.ColumnHeaderCell>Date</Table.ColumnHeaderCell>
+                  <Table.ColumnHeaderCell>Driving (hrs)</Table.ColumnHeaderCell>
+                  <Table.ColumnHeaderCell>
+                    On Duty, Not Driving (hrs)
+                  </Table.ColumnHeaderCell>
+                  <Table.ColumnHeaderCell>
+                    Off Duty (hrs)
+                  </Table.ColumnHeaderCell>
+                  <Table.ColumnHeaderCell>
+                    Sleeper Berth (hrs)
+                  </Table.ColumnHeaderCell>
+                </Table.Row>
+              </Table.Header>
+              <Table.Body>
+                {dailyLogs.map((log) => (
+                  <Table.Row key={log.date}>
+                    <Table.RowHeaderCell>{log.date}</Table.RowHeaderCell>
+                    <Table.Cell>{log.driving.toFixed(1)}</Table.Cell>
+                    <Table.Cell>{log.onDuty.toFixed(1)}</Table.Cell>
+                    <Table.Cell>{log.offDuty.toFixed(1)}</Table.Cell>
+                    <Table.Cell>{log.sleeperBerth.toFixed(1)}</Table.Cell>
+                  </Table.Row>
+                ))}
+              </Table.Body>
+            </Table.Root>
+          )}
         </Box>
       </section>
     </Box>

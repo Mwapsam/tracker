@@ -3,9 +3,19 @@ from .models import Driver, Carrier, Vehicle, LogEntry, DutyStatus
 
 
 class DutyStatusSerializer(serializers.ModelSerializer):
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
+    location = serializers.SerializerMethodField()
+
     class Meta:
         model = DutyStatus
-        fields = ["status_type", "start_time", "end_time", "location"]
+        fields = ["status", "status_display", "start_time", "end_time", "location"]
+
+    def get_location(self, obj):
+        return {
+            "lat": obj.location_lat,
+            "lon": obj.location_lon,
+            "name": obj.location_name,
+        }
 
 
 class LogEntrySerializer(serializers.ModelSerializer):
@@ -45,7 +55,7 @@ class CarrierSerializer(serializers.ModelSerializer):
 
 
 class DriverSerializer(serializers.ModelSerializer):
-    carriers = CarrierSerializer(many=True)
+    carrier = CarrierSerializer()
 
     class Meta:
         model = Driver

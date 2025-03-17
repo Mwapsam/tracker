@@ -1,150 +1,129 @@
-import datetime
-import random
 from django.core.management.base import BaseCommand
-from django.contrib.auth.models import User
 from django.utils import timezone
+from datetime import timedelta
+from django.contrib.auth.models import User
+from trucker.models import (
+    Carrier,
+    Driver,
+    Vehicle,
+    LogEntry,
+    DutyStatus,
+    CycleCalculation,
+)
 
-from trips.models import Carrier, Driver, Vehicle, LogEntry, DutyStatus, CycleCalculation
 
 class Command(BaseCommand):
-    help = "Create dummy data for testing HOS models"
+    help = "Creates dummy data for testing purposes."
 
     def handle(self, *args, **options):
-        # 1) Create a few Carriers
-        carriers = [
-            {
-                "name": "ACME Trucking",
-                "mc_number": "MC123456",
-                "main_office_address": "123 Main St, Dallas, TX",
-                "home_terminal_address": "Dallas Terminal",
+        # Create or get a Carrier
+        carrier, created = Carrier.objects.get_or_create(
+            mc_number="MC123456",
+            defaults={
+                "name": "Dummy Carrier",
+                "main_office_address": "123 Main St",
+                "home_terminal_address": "456 Terminal Rd",
                 "hos_cycle_choice": "70",
             },
-            {
-                "name": "FastHaul Logistics",
-                "mc_number": "MC789012",
-                "main_office_address": "987 Elm St, Atlanta, GA",
-                "home_terminal_address": "Atlanta Terminal",
-                "hos_cycle_choice": "60",
-            },
-        ]
-        carrier_objs = []
-        for c in carriers:
-            obj, created = Carrier.objects.get_or_create(
-                mc_number=c["mc_number"],
-                defaults=c
-            )
-            carrier_objs.append(obj)
-
-        # 2) Create some Users & Drivers
-        user1 = User.objects.create_user(
-            username="driver_jane",
-            password="password123",
-            first_name="Jane",
-            last_name="Doe"
         )
-        user2 = User.objects.create_user(
-            username="driver_john",
-            password="password123",
-            first_name="John",
-            last_name="Smith"
-        )
+        if created:
+            self.stdout.write(self.style.SUCCESS("Created Carrier"))
+        else:
+            self.stdout.write("Carrier already exists.")
 
-        driver1, _ = Driver.objects.get_or_create(
-            user=user1,
-            carrier=carrier_objs[0],
-            license_number="TX1234567",
-            defaults={"current_cycle_used": 10.0},
-        )
-        driver2, _ = Driver.objects.get_or_create(
-            user=user2,
-            carrier=carrier_objs[1],
-            license_number="GA9876543",
-            defaults={"current_cycle_used": 25.0},
-        )
-
-        # 3) Create Vehicles
-        vehicles_data = [
-            {
-                "carrier": carrier_objs[0],
-                "truck_number": "T100",
-                "trailer_number": "TR1",
-                "vin": "VIN00000000000001",
+        # Create or get a User
+        user, created = User.objects.get_or_create(
+            username="dummyuser",
+            defaults={
+                "first_name": "John",
+                "last_name": "Doe",
+                "email": "john@example.com",
             },
-            {
-                "carrier": carrier_objs[0],
-                "truck_number": "T200",
-                "trailer_number": "",
-                "vin": "VIN00000000000002",
+        )
+        if created:
+            user.set_password("password123")
+            user.save()
+            self.stdout.write(self.style.SUCCESS("Created User"))
+        else:
+            self.stdout.write("User already exists.")
+
+        # Create or get a Driver linked to the User and Carrier
+        driver, created = Driver.objects.get_or_create(
+            user=user,
+            defaults={
+                "license_number": "DL987654",
+                "carrier": carrier,
+                "current_cycle_used": 0,
+                "last_34hr_restart": timezone.now() - timedelta(days=2),
             },
-            {
-                "carrier": carrier_objs[1],
-                "truck_number": "T300",
-                "trailer_number": "TR9",
-                "vin": "VIN00000000000003",
+        )
+        if created:
+            self.stdout.write(self.style.SUCCESS("Created Driver"))
+        else:
+            self.stdout.write("Driver already exists.")
+
+        # Create or get a Vehicle
+        vehicle, created = Vehicle.objects.get_or_create(
+            vin="1HGBH41JXMN109186",
+            defaults={
+                "carrier": carrier,
+                "truck_number": "TRUCK001",
+                "trailer_number": "TRAILER001",
             },
-        ]
-        vehicle_objs = []
-        for v in vehicles_data:
-            vo, _ = Vehicle.objects.get_or_create(vin=v["vin"], defaults=v)
-            vehicle_objs.append(vo)
+        )
+        if created:
+            self.stdout.write(self.style.SUCCESS("Created Vehicle"))
+        else:
+            self.stdout.write("Vehicle already exists.")
 
-        # 4) Create LogEntries
-        log_entries = []
-        for i in range(3):
-            for drv in [driver1, driver2]:
-                vehicle_choice = random.choice(vehicle_objs)
-                start_odom = random.uniform(1000, 2000)
-                end_odom = start_odom + random.uniform(50, 200)
+        # Create or get a LogEntry
+        now = timezone.now()
+        log_entry, created = LogEntry.objects.get_or_create(
+            driver=driver,
+            vehicle=vehicle,
+            date=now.date(),
+            defaults={
+                "start_odometer": 1000.0,
+                "end_odometer": 1200.0,
+                "remarks": "Dummy log entry for testing",
+                "signature": "John Doe",
+                "adverse_conditions": False,
+                "duty_window_start": now,
+                "duty_window_end": now
+                + timedelta(hours=13),  # Valid within the 14-hour limit
+            },
+        )
+        if created:
+            self.stdout.write(self.style.SUCCESS("Created LogEntry"))
+        else:
+            self.stdout.write("LogEntry already exists.")
 
-                log = LogEntry.objects.create(
-                    driver=drv,
-                    vehicle=vehicle_choice,
-                    date=timezone.now().date() - datetime.timedelta(days=i),
-                    start_odometer=start_odom,
-                    end_odometer=end_odom,
-                    remarks="Sample log entry",
-                    signature=f"{drv.user.get_full_name()}",
-                    duty_window_start=timezone.now() - datetime.timedelta(hours=14),
-                    duty_window_end=timezone.now(),  # random example
-                    adverse_conditions=(i == 1),  # just for demonstration
-                )
-                log_entries.append(log)
+        # Create or get a DutyStatus for the LogEntry
+        duty_status, created = DutyStatus.objects.get_or_create(
+            log_entry=log_entry,
+            start_time=now,
+            end_time=now + timedelta(hours=2),
+            defaults={
+                "status": "D",
+                "location_lat": 34.0522,
+                "location_lon": -118.2437,
+                "location_name": "Los Angeles, CA",
+            },
+        )
+        if created:
+            self.stdout.write(self.style.SUCCESS("Created DutyStatus"))
+        else:
+            self.stdout.write("DutyStatus already exists.")
 
-        # 5) Create DutyStatuses
-        for log in log_entries:
-            base_start = datetime.datetime.combine(log.date, datetime.time(0, 0))
-            times = [
-                ("D", 6),   # 6 hours driving
-                ("ON", 2),  # 2 hours on-duty not driving
-                ("OFF", 8), # 8 hours off
-                ("SB", 8),  # 8 hours sleeper (complete 24h)
-            ]
-            current_start = base_start
-            for (status_code, hours) in times:
-                st = timezone.make_aware(current_start)
-                et = st + datetime.timedelta(hours=hours)
-                DutyStatus.objects.create(
-                    log_entry=log,
-                    status=status_code,
-                    start_time=st,
-                    end_time=et,
-                    location_lat=32.7767 + random.random(),
-                    location_lon=-96.7970 + random.random(),
-                    location_name="Random Place",
-                )
-                current_start = et
+        # Create or get a CycleCalculation record
+        calc, created = CycleCalculation.objects.get_or_create(
+            driver=driver,
+            calculation_date=now.date(),
+            defaults={"total_hours": 50.0, "cycle_type": "70-hour"},
+        )
+        if created:
+            self.stdout.write(self.style.SUCCESS("Created CycleCalculation"))
+        else:
+            self.stdout.write("CycleCalculation already exists.")
 
-        # 6) Create CycleCalculations
-        for drv in [driver1, driver2]:
-            for i in range(3):
-                day = timezone.now().date() - datetime.timedelta(days=i)
-                CycleCalculation.objects.update_or_create(
-                    driver=drv,
-                    calculation_date=day,
-                    defaults={
-                        "total_hours": random.uniform(0, 11),
-                        "cycle_type": f"{drv.carrier.hos_cycle_choice}-hour",
-                    },
-                )
-
-        self.stdout.write(self.style.SUCCESS("Dummy data created successfully!"))
+        self.stdout.write(self.style.SUCCESS("Dummy data creation complete."))

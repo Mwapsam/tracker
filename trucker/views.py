@@ -1,4 +1,4 @@
-from rest_framework import viewsets
+from rest_framework import viewsets, serializers
 from rest_framework.permissions import IsAuthenticated
 from .models import LogEntry, Driver, Vehicle, Carrier
 from .serializers import (
@@ -15,9 +15,16 @@ class LogEntryViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return LogEntry.objects.filter(driver__user=self.request.user)
 
+
     def perform_create(self, serializer):
-        driver = Driver.objects.get(user=self.request.user)
+        try:
+            driver = Driver.objects.get(user=self.request.user)
+        except Driver.DoesNotExist:
+            raise serializers.ValidationError(
+                "Driver profile does not exist for this user."
+            )
         serializer.save(driver=driver)
+
 
 class DriverViewSet(viewsets.ModelViewSet):
     queryset = Driver.objects.all()

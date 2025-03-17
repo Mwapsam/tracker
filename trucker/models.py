@@ -22,7 +22,9 @@ class Carrier(models.Model):
 class Driver(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     license_number = models.CharField(max_length=50)
-    carrier = models.ForeignKey(Carrier, on_delete=models.CASCADE, null=True, blank=True)
+    carrier = models.ForeignKey(
+        Carrier, on_delete=models.CASCADE, null=True, blank=True
+    )
     current_cycle_used = models.FloatField(default=0)  # Track 60/70-hour limit
     last_34hr_restart = models.DateTimeField(null=True, blank=True)
 
@@ -35,7 +37,9 @@ class Driver(models.Model):
 
 
 class Vehicle(models.Model):
-    carrier = models.ForeignKey(Carrier, on_delete=models.CASCADE, null=True, blank=True)
+    carrier = models.ForeignKey(
+        Carrier, on_delete=models.CASCADE, null=True, blank=True
+    )
     truck_number = models.CharField(max_length=20)
     trailer_number = models.CharField(max_length=20, blank=True)
     vin = models.CharField(max_length=17, unique=True, null=True, blank=True)
@@ -60,13 +64,16 @@ class LogEntry(models.Model):
     duty_window_end = models.DateTimeField(null=True, blank=True)
 
     def clean(self):
-        # Validate 14-hour window
-        if self.duty_window_end:
+        if self.duty_window_start and self.duty_window_end:
             duration = self.duty_window_end - self.duty_window_start
             if duration.total_seconds() > 14 * 3600 and not self.adverse_conditions:
                 raise ValidationError(
                     "14-hour duty window exceeded without adverse conditions exception"
                 )
+        if self.end_odometer < self.start_odometer:
+            raise ValidationError(
+                "End odometer reading cannot be lower than start odometer."
+            )
 
     def save(self, *args, **kwargs):
         self.total_miles = self.end_odometer - self.start_odometer
@@ -74,6 +81,14 @@ class LogEntry(models.Model):
 
     def __str__(self):
         return f"{self.driver} - {self.date}"
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(end_odometer__gte=models.F("start_odometer")),
+                name="end_odometer_gte_start",
+            )
+        ]
 
 
 class DutyStatus(models.Model):
@@ -87,7 +102,7 @@ class DutyStatus(models.Model):
     log_entry = models.ForeignKey(
         LogEntry, on_delete=models.CASCADE, related_name="duty_statuses"
     )
-    status = models.CharField(max_length=3, choices=STATUS_CHOICES, default='OFF')
+    status = models.CharField(max_length=3, choices=STATUS_CHOICES, default="OFF")
     start_time = models.DateTimeField()
     end_time = models.DateTimeField()
     location_lat = models.FloatField(null=True, blank=True)

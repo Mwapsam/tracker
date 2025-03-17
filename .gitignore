@@ -9,3 +9,7 @@ poetry.lock
 
 .env
 
+staticfiles/
+
+
+
