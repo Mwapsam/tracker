@@ -7,7 +7,7 @@ SECRET_KEY = "django-insecure-9g=_&$2w+pfi1^g=5e-u7n0hn)ec(=*d(#d(gnc2t&w^weqk0f
 
 DEBUG = True
 
-ALLOWED_HOSTS = ["test.taskcentro.com"]
+ALLOWED_HOSTS = ["test.taskcentro.com", "3.10.116.8"]
 
 
 INSTALLED_APPS = [
