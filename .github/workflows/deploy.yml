@@ -32,12 +32,12 @@ jobs:
             --exclude=.git \
             --exclude=.github \
             --filter="protect .env" \
-            ./ ubuntu@3.10.116.8:/home/ubuntu/scanpay/
+            ./ ubuntu@3.10.116.8:/home/ubuntu/tracker/
 
       - name: Deploy containers
         run: |
           ssh ubuntu@3.10.116.8 /bin/bash << EOF
-            cd /home/ubuntu/scanpay
+            cd /home/ubuntu/tracker
             docker compose down
             docker compose pull
             docker compose up -d --build
