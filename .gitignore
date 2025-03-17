@@ -3,7 +3,7 @@ __pycache__/
 
 db.sqlite3
 
-poetry.lock
+# poetry.lock
 
 .pytest_cache/
 
