@@ -5,7 +5,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = "django-insecure-9g=_&$2w+pfi1^g=5e-u7n0hn)ec(=*d(#d(gnc2t&w^weqk0f"
 
-DEBUG = True
+DEBUG = os.environ.get("DEBUG", False)
 
 ALLOWED_HOSTS = ["test.taskcentro.com", "3.10.116.8"]
 
