@@ -122,4 +122,5 @@ REST_FRAMEWORK = {
     ],
 }
 
-CORS_ALLOWED_ORIGINS = ["http://localhost:3000", "http://localhost:3000"]
+CORS_ALLOWED_ORIGINS = ["http://localhost:3000"]
+CSRF_TRUSTED_ORIGINS = ["https://https://test.taskcentro.com", "http://localhost:3000"]
