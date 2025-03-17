@@ -32,6 +32,7 @@ jobs:
             --exclude=.git \
             --exclude=.github \
             --exclude='__pycache__' \
+            --exclude= db.sqlite3 \
             --filter="protect .env" \
             ./ ubuntu@3.10.116.8:/home/ubuntu/tracker/
 
