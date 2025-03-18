@@ -28,7 +28,7 @@ jobs:
 
       - name: Sync code
         run: |
-          rsync -avz --delete \
+          rsync -avvv --delete \
             --exclude=.git \
             --exclude=.github \
             --exclude='__pycache__' \
