@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { Box, Table } from "@radix-ui/themes";
+import fetchLogs from "@/hooks/getLogs";
 
 interface DutyStatus {
   status: string;
@@ -40,18 +41,25 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("http://localhost:8000/api/logs/")
-      .then((res) => res.json())
-      .then((data: LogEntry[]) => {
-        setLogEntries(data);
-        aggregateDailyLogs(data);
+    async function loadData() {
+      try {
+        const res = await fetchLogs();
+        const data = res;
+
+        if (data) {
+          setLogEntries(data);
+          aggregateDailyLogs(data);
+        }
+      } catch (error) {
+        console.error("Error loading logs:", error);
+      } finally {
         setLoading(false);
-      })
-      .catch((err) => {
-        console.error("Error fetching log entries", err);
-        setLoading(false);
-      });
+      }
+    }
+    loadData();
   }, []);
+
+  console.log(logEntries);
 
   function aggregateDailyLogs(entries: LogEntry[]) {
     const aggregation: { [date: string]: DailyLog } = {};

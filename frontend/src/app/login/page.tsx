@@ -2,27 +2,17 @@
 
 import React from "react";
 import { Box, Button, Heading, TextField } from "@radix-ui/themes";
-import axios from "axios";
+import { login } from "../actions/auth";
 
 const Page = () => {
-  async function createInvoice(formData: FormData) {
-    const rawFormData = {
-      username: formData.get("username"),
-      password: formData.get("password"),
-    };
+  const onSubmit = async (formData: FormData) => {
+    const res = await login(formData);
 
-    const response = await axios.post(
-      "http://localhost:8000/api/token/",
-      rawFormData
-    );
-
-    const data = await response.data;
-    console.log(data);
-
-    if (!response) {
-      throw new Error(data.detail || "Login failed");
+    if (res) {
+      window.location.href = "/";
     }
-  }
+  };
+
   return (
     <Box
       style={{
@@ -53,15 +43,15 @@ const Page = () => {
         </Heading>
         <Box as="div">
           <form
-            action={createInvoice}
+            action={onSubmit}
             style={{ display: "flex", flexDirection: "column", gap: "1rem" }}
           >
             <TextField.Root placeholder="Username" name="username">
-              <TextField.Slot></TextField.Slot>
+              <TextField.Slot />
             </TextField.Root>
 
             <TextField.Root placeholder="Password" name="password">
-              <TextField.Slot></TextField.Slot>
+              <TextField.Slot />
             </TextField.Root>
 
             <Button variant="solid" type="submit">
