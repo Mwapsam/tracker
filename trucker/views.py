@@ -1,12 +1,15 @@
-from rest_framework import viewsets, serializers
+from rest_framework import viewsets, serializers, views
+from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from .models import LogEntry, Driver, Vehicle, Carrier
 from .serializers import (
     LogEntrySerializer,
     DriverSerializer,
+    UserSerializer,
     VehicleSerializer,
     CarrierSerializer,
 )
+
 
 class LogEntryViewSet(viewsets.ModelViewSet):
     serializer_class = LogEntrySerializer
@@ -14,7 +17,6 @@ class LogEntryViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         return LogEntry.objects.filter(driver__user=self.request.user)
-
 
     def perform_create(self, serializer):
         try:
@@ -31,10 +33,21 @@ class DriverViewSet(viewsets.ModelViewSet):
     serializer_class = DriverSerializer
     permission_classes = [IsAuthenticated]
 
+
 class VehicleViewSet(viewsets.ModelViewSet):
     queryset = Vehicle.objects.all()
     serializer_class = VehicleSerializer
 
+
 class CarrierViewSet(viewsets.ModelViewSet):
     queryset = Carrier.objects.all()
     serializer_class = CarrierSerializer
+
+
+class CurrentUserAPIView(views.APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        data = UserSerializer(user).data
+        return Response(data, status=200)
