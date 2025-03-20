@@ -10,11 +10,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1) Checkout code
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 2) Setup SSH
       - name: Setup SSH
         uses: webfactory/ssh-agent@v0.9.0
         with:
