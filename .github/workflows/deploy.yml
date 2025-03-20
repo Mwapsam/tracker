@@ -56,5 +56,7 @@ jobs:
         run: |
           ssh ubuntu@3.10.116.8 "
             cd /home/ubuntu/tracker && \
-            docker compose up --build -d
+            if [ -f db.sqlite3 ]; then rm db.sqlite3; echo 'Deleted db.sqlite3'; fi; \
+            docker compose up --build -d --remove-orphans
           "
+
