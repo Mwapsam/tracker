@@ -43,4 +43,4 @@ jobs:
             if [ -f db.sqlite3 ]; then sudo rm db.sqlite3; echo 'Deleted db.sqlite3'; fi; \
             docker compose up --build -d
           "
-
+          
