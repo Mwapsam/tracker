@@ -39,27 +39,25 @@ export default function Home() {
   const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
   const [dailyLogs, setDailyLogs] = useState<DailyLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadData() {
       try {
         const res = await fetchLogs();
-        const data = res;
-
-        if (data) {
-          setLogEntries(data);
-          aggregateDailyLogs(data);
+        if (res) {
+          setLogEntries(res);
+          aggregateDailyLogs(res);
         }
       } catch (error) {
         console.error("Error loading logs:", error);
+        setError("Failed to load logs. Please try again later.");
       } finally {
         setLoading(false);
       }
     }
     loadData();
   }, []);
-
-  console.log(logEntries);
 
   function aggregateDailyLogs(entries: LogEntry[]) {
     const aggregation: { [date: string]: DailyLog } = {};
@@ -120,7 +118,9 @@ export default function Home() {
         <Box>
           <h2 style={{ marginBottom: "0.5rem" }}>Trip Details</h2>
           {loading ? (
-            <p>Loading...</p>
+            <p>Loading trip details...</p>
+          ) : error ? (
+            <p style={{ color: "red" }}>{error}</p>
           ) : (
             <Table.Root variant="surface">
               <Table.Header>
@@ -176,7 +176,9 @@ export default function Home() {
         <Box>
           <h2 style={{ marginBottom: "0.5rem" }}>Daily Logs</h2>
           {loading ? (
-            <p>Loading...</p>
+            <p>Loading daily logs...</p>
+          ) : error ? (
+            <p style={{ color: "red" }}>{error}</p>
           ) : (
             <Table.Root variant="surface">
               <Table.Header>

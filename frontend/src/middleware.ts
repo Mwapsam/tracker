@@ -1,11 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { cookies } from "next/headers";
 
-const protectedRoutes = [
-  "/",,
-];
-
+const protectedRoutes = ["/"];
 const publicRoutes = ["/login", "/password"];
 
 export async function middleware(request: NextRequest) {
@@ -13,13 +9,16 @@ export async function middleware(request: NextRequest) {
   const isProtectedRoute = protectedRoutes.includes(path);
   const isPublicRoute = publicRoutes.includes(path);
 
-  const cookieStore = cookies();
-  const accessToken = (await cookieStore).get("accessToken");
+  const accessToken = request.cookies.get("accessToken")?.value;
 
-  if (isProtectedRoute && !accessToken) {
-    return NextResponse.redirect(new URL("/login", request.nextUrl));
+  // If the user is on a protected route and the token is missing or empty, log them out
+  if (isProtectedRoute && (!accessToken || accessToken.trim() === "")) {
+    const response = NextResponse.redirect(new URL("/login", request.nextUrl));
+    response.cookies.set("accessToken", "", { path: "/", maxAge: 0 }); // Clear token
+    return response;
   }
 
+  // If the user is on a public route but has a valid token, redirect to home
   if (isPublicRoute && accessToken) {
     return NextResponse.redirect(new URL("/", request.nextUrl));
   }

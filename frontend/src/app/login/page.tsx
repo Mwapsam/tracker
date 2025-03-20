@@ -1,15 +1,44 @@
 "use client";
 
-import React from "react";
-import { Box, Button, Heading, TextField } from "@radix-ui/themes";
+import React, { useState } from "react";
+import {
+  Box,
+  Button,
+  Heading,
+  Text,
+  TextField,
+  Spinner,
+} from "@radix-ui/themes";
 import { login } from "../actions/auth";
 
 const Page = () => {
-  const onSubmit = async (formData: FormData) => {
-    const res = await login(formData);
+  const [formData, setFormData] = useState({ username: "", password: "" });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-    if (res) {
-      window.location.href = "/";
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+
+    try {
+      const res = await login(new FormData(e.target as HTMLFormElement));
+
+      if (res) {
+        window.location.href = "/";
+      }
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("An unexpected error occurred");
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -41,24 +70,48 @@ const Page = () => {
         >
           Welcome
         </Heading>
+
+        {error && (
+          <Text
+            color="red"
+            size={"2"}
+            style={{ textAlign: "center" }}
+          >
+            {error}
+          </Text>
+        )}
+
         <Box as="div">
           <form
-            action={onSubmit}
-            style={{ display: "flex", flexDirection: "column", gap: "1rem" }}
+            onSubmit={handleSubmit}
+            style={{ display: "flex", flexDirection: "column", gap: "1rem", marginTop: "1rem" }}
           >
-            <TextField.Root placeholder="Username" name="username">
+            <TextField.Root
+              type="text"
+              name="username"
+              placeholder="Username"
+              value={formData.username}
+              onChange={handleChange}
+              required
+            >
               <TextField.Slot />
             </TextField.Root>
-
-            <TextField.Root placeholder="Password" name="password">
+            <TextField.Root
+              type="password"
+              name="password"
+              placeholder="Password"
+              value={formData.password}
+              onChange={handleChange}
+              required
+            >
               <TextField.Slot />
             </TextField.Root>
-
-            <Button variant="solid" type="submit">
-              Login
+            <Button variant="solid" type="submit" disabled={loading}>
+              {loading ? <Spinner size="1" /> : "Login"}
             </Button>
           </form>
         </Box>
+
         <Box
           style={{
             display: "flex",
