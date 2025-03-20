@@ -31,7 +31,6 @@ jobs:
           rsync -avz --delete \
             --exclude=.git \
             --exclude=.github \
-            --exclude=db.sqlite3 \
             --exclude='__pycache__' \
             --exclude=staticfiles \
             --filter="protect .env" \
@@ -39,5 +38,5 @@ jobs:
 
       - name: Deploy containers
         run: |
-          ssh ubuntu@3.10.116.8 "cd /home/ubuntu/tracker && docker compose up --build -d"
-          
+          ssh ubuntu@3.10.116.8 "cd /home/ubuntu/tracker && rm db.sqlite3 && docker compose up --build -d"
+
