@@ -20,6 +20,7 @@ class Command(BaseCommand):
     help = "Creates dynamic dummy data for testing purposes."
 
     def handle(self, *args, **options):
+        # Create or get a Carrier
         carrier_name = fake.company()
         mc_number = "MC" + "".join(str(random.randint(0, 9)) for _ in range(6))
         main_office_address = fake.address()
@@ -40,6 +41,7 @@ class Command(BaseCommand):
         else:
             self.stdout.write("Carrier already exists.")
 
+        # Create or get a User
         username = fake.user_name()
         first_name = fake.first_name()
         last_name = fake.last_name()
@@ -105,52 +107,60 @@ class Command(BaseCommand):
         else:
             self.stdout.write("Vehicle already exists.")
 
-        now_time = timezone.now()
-        start_odometer = round(random.uniform(1000, 5000), 2)
-        end_odometer = start_odometer + round(random.uniform(50, 500), 2)
-        log_entry, created = LogEntry.objects.get_or_create(
-            driver=driver,
-            vehicle=vehicle,
-            date=now_time.date(),
-            defaults={
-                "start_odometer": start_odometer,
-                "end_odometer": end_odometer,
-                "remarks": fake.sentence(nb_words=6),
-                "signature": f"{first_name} {last_name}",
-                "adverse_conditions": random.choice([True, False]),
-                "duty_window_start": now_time,
-                "duty_window_end": now_time
-                + timedelta(hours=random.randint(10, 14)),  
-            },
-        )
-        if created:
-            self.stdout.write(self.style.SUCCESS("Created LogEntry"))
-        else:
-            self.stdout.write("LogEntry already exists.")
+        # Create at least 10 LogEntry objects with corresponding DutyStatus entries
+        for i in range(10):
+            now_time = timezone.now() + timedelta(
+                minutes=i
+            )  # slight variation in timestamp
+            start_odometer = round(random.uniform(1000, 5000), 2)
+            end_odometer = start_odometer + round(random.uniform(50, 500), 2)
+            log_entry, created = LogEntry.objects.get_or_create(
+                driver=driver,
+                vehicle=vehicle,
+                date=now_time.date(),
+                defaults={
+                    "start_odometer": start_odometer,
+                    "end_odometer": end_odometer,
+                    "remarks": fake.sentence(nb_words=6),
+                    "signature": f"{first_name} {last_name}",
+                    "adverse_conditions": random.choice([True, False]),
+                    "duty_window_start": now_time,
+                    "duty_window_end": now_time
+                    + timedelta(hours=random.randint(10, 14)),
+                },
+            )
+            if created:
+                self.stdout.write(self.style.SUCCESS(f"Created LogEntry {i+1}"))
+            else:
+                self.stdout.write(f"LogEntry {i+1} already exists.")
 
-        duty_start = now_time
-        duty_end = duty_start + timedelta(hours=random.randint(1, 4))
-        status_choice = random.choice(["D", "ON", "OFF", "SB"])
-        duty_status, created = DutyStatus.objects.get_or_create(
-            log_entry=log_entry,
-            start_time=duty_start,
-            end_time=duty_end,
-            defaults={
-                "status": status_choice,
-                "location_lat": float(fake.latitude()),
-                "location_lon": float(fake.longitude()),
-                "location_name": fake.city(),
-            },
-        )
-        if created:
-            self.stdout.write(self.style.SUCCESS("Created DutyStatus"))
-        else:
-            self.stdout.write("DutyStatus already exists.")
+            # Create a DutyStatus for each LogEntry
+            duty_start = now_time
+            duty_end = duty_start + timedelta(hours=random.randint(1, 4))
+            status_choice = random.choice(["D", "ON", "OFF", "SB"])
+            duty_status, created = DutyStatus.objects.get_or_create(
+                log_entry=log_entry,
+                start_time=duty_start,
+                end_time=duty_end,
+                defaults={
+                    "status": status_choice,
+                    "location_lat": float(fake.latitude()),
+                    "location_lon": float(fake.longitude()),
+                    "location_name": fake.city(),
+                },
+            )
+            if created:
+                self.stdout.write(
+                    self.style.SUCCESS(f"Created DutyStatus for LogEntry {i+1}")
+                )
+            else:
+                self.stdout.write(f"DutyStatus for LogEntry {i+1} already exists.")
 
+        # Create or get a CycleCalculation for the current day
         total_hours = round(random.uniform(0, 70), 2)
         cycle_calculation, created = CycleCalculation.objects.get_or_create(
             driver=driver,
-            calculation_date=now_time.date(),
+            calculation_date=timezone.now().date(),
             defaults={
                 "total_hours": total_hours,
                 "cycle_type": f"{hos_cycle_choice}-hour",
