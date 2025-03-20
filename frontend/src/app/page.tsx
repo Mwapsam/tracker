@@ -41,6 +41,9 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  console.log(dailyLogs);
+  
+
   useEffect(() => {
     async function loadData() {
       try {

@@ -11,5 +11,6 @@ poetry.lock
 
 staticfiles/
 */__pycache__/*
+.venv 
 
 
