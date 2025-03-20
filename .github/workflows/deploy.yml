@@ -38,4 +38,9 @@ jobs:
 
       - name: Deploy containers
         run: |
-          ssh ubuntu@3.10.116.8 "cd /home/ubuntu/tracker && [ -f db.sqlite3 ] && rm db.sqlite3 || echo 'No database found' && docker compose up --build -d"
+          ssh ubuntu@3.10.116.8 "
+            cd /home/ubuntu/tracker && \
+            if [ -f db.sqlite3 ]; then sudo rm db.sqlite3; echo 'Deleted db.sqlite3'; fi; \
+            docker compose up --build -d
+          "
+
