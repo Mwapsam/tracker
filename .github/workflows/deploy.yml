@@ -10,9 +10,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # 1) Checkout code
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # 2) Setup SSH
       - name: Setup SSH
         uses: webfactory/ssh-agent@v0.9.0
         with:
@@ -36,11 +38,25 @@ jobs:
             --filter="protect .env" \
             ./ ubuntu@3.10.116.8:/home/ubuntu/tracker/
 
+      - name: Create .env on server
+        run: |
+          ssh ubuntu@3.10.116.8 "cat <<EOF > /home/ubuntu/tracker/.env
+          DJANGO_PRODUCTION=${{ secrets.DJANGO_PRODUCTION }}
+          DATABASE_ENGINE=${{ secrets.DATABASE_ENGINE }}
+          DATABASE_HOST=${{ secrets.DATABASE_HOST }}
+          DATABASE_NAME=${{ secrets.DATABASE_NAME }}
+          DATABASE_USER=${{ secrets.DATABASE_USER }}
+          DATABASE_PASSWORD=${{ secrets.DATABASE_PASSWORD }}
+          DATABASE_PORT=${{ secrets.DATABASE_PORT }}
+          DEBUG=${{ secrets.DEBUG }}
+          EOF
+          "
+          # Secure the .env file so only ubuntu user can read/write it
+          ssh ubuntu@3.10.116.8 "chmod 600 /home/ubuntu/tracker/.env"
+
       - name: Deploy containers
         run: |
           ssh ubuntu@3.10.116.8 "
             cd /home/ubuntu/tracker && \
-            if [ -f db.sqlite3 ]; then sudo rm db.sqlite3; echo 'Deleted db.sqlite3'; fi; \
             docker compose up --build -d
           "
-          
