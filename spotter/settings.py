@@ -59,16 +59,24 @@ TEMPLATES = [
 WSGI_APPLICATION = "spotter.wsgi.application"
 
 
-DATABASES = {
-    "default": {
-        "ENGINE": os.environ.get("DATABASE_ENGINE", "django.db.backends.sqlite3"),
-        "NAME": os.environ.get("DATABASE_NAME", os.path.join(BASE_DIR, "db.sqlite3")),
-        "USER": os.environ.get("DATABASE_USER", None),
-        "PASSWORD": os.environ.get("DATABASE_PASSWORD", None),
-        "HOST": os.environ.get("DATABASE_HOST", None),
-        "PORT": os.environ.get("DATABASE_PORT", None),
+if os.getenv("DJANGO_PRODUCTION") == "true":
+    DATABASES = {
+        "default": {
+            "ENGINE": os.getenv("DATABASE_ENGINE", "django.db.backends.postgresql"),
+            "NAME": os.getenv("DATABASE_NAME"),
+            "USER": os.getenv("DATABASE_USER"),
+            "PASSWORD": os.getenv("DATABASE_PASSWORD"),
+            "HOST": os.getenv("DATABASE_HOST", "localhost"),
+            "PORT": os.getenv("DATABASE_PORT", "5432"),
+        }
     }
-}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+    }
 
 
 AUTH_PASSWORD_VALIDATORS = [
