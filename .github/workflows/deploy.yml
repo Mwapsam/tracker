@@ -31,6 +31,7 @@ jobs:
           rsync -avz --delete \
             --exclude=.git \
             --exclude=.github \
+            --exclude=db.sqlite3 \
             --exclude='__pycache__' \
             --exclude=staticfiles \
             --filter="protect .env" \

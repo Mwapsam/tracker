@@ -11,14 +11,12 @@ export async function middleware(request: NextRequest) {
 
   const accessToken = request.cookies.get("accessToken")?.value;
 
-  // If the user is on a protected route and the token is missing or empty, log them out
   if (isProtectedRoute && (!accessToken || accessToken.trim() === "")) {
     const response = NextResponse.redirect(new URL("/login", request.nextUrl));
-    response.cookies.set("accessToken", "", { path: "/", maxAge: 0 }); // Clear token
+    response.cookies.set("accessToken", "", { path: "/", maxAge: 0 });
     return response;
   }
 
-  // If the user is on a public route but has a valid token, redirect to home
   if (isPublicRoute && accessToken) {
     return NextResponse.redirect(new URL("/", request.nextUrl));
   }
