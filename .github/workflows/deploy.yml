@@ -46,6 +46,7 @@ jobs:
           DATABASE_PASSWORD=${{ secrets.DATABASE_PASSWORD }}
           DATABASE_PORT=${{ secrets.DATABASE_PORT }}
           DEBUG=${{ secrets.DEBUG }}
+          DJANGO_SETTINGS_MODULE=${{ secrets.DJANGO_SETTINGS_MODULE}}
           EOF
           "
           # Secure the .env file so only ubuntu user can read/write it
@@ -58,4 +59,3 @@ jobs:
             if [ -f db.sqlite3 ]; then rm db.sqlite3; echo 'Deleted db.sqlite3'; fi; \
             docker compose up --build -d --remove-orphans
           "
-
