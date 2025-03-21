@@ -145,13 +145,15 @@ class DutyStatus(models.Model):
             validate_30_minute_break(statuses)
         if self.status in ["OFF", "SB"]:
             check_34_hour_restart(self)
+    
+    def get_status_display(self):
+        mapping = dict(self.STATUS_CHOICES)
+        return mapping.get(self.status, self.status)
+
 
     def __str__(self):
         return f"{self.get_status_display()} ({self.start_time} - {self.end_time})"
 
-    def __str__(self):
-        time_range = format_duty_status_time_range(self.start_time, self.end_time)
-        return f"{self.get_status_display()} {time_range}"
 
     class Meta:
         ordering = ["start_time"]
