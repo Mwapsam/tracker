@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Box, Table, Text } from "@radix-ui/themes";
 import fetchLogs from "@/hooks/getLogs";
-import Wrapper from "./trips/wrapper";
+import Wrapper from "@/wrapper";
 
 interface DutyStatus {
   status: string;

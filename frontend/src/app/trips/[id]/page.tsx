@@ -3,7 +3,7 @@
 import React, { useState, ChangeEvent, FormEvent } from "react";
 import { Box, Button, Flex, Text } from "@radix-ui/themes";
 import Autocomplete from "react-google-autocomplete";
-import Wrapper from "../wrapper";
+import Wrapper from "@/wrapper";
 
 interface DutyStatusInput {
   status: string;

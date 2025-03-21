@@ -3,16 +3,15 @@ from pathlib import Path
 from dotenv import load_dotenv
 from datetime import timedelta
 
-BASE_DIR = Path(__file__).resolve().parent.parent
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 load_dotenv(os.path.join(BASE_DIR, ".env"))
 
-SECRET_KEY = "django-insecure-9g=_&$2w+pfi1^g=5e-u7n0hn)ec(=*d(#d(gnc2t&w^weqk0f"
-
-DEBUG = os.environ.get("DEBUG", False)
+SECRET_KEY = os.environ.get(
+    "SECRET_KEY", "django-insecure-9g=_&$2w+pfi1^g=5e-u7n0hn)ec(=*d(#d(gnc2t&w^weqk0f"
+)
 
 ALLOWED_HOSTS = ["test.taskcentro.com", "3.10.116.8"]
-
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -63,26 +62,6 @@ TEMPLATES = [
 WSGI_APPLICATION = "spotter.wsgi.application"
 
 
-if os.getenv("DJANGO_PRODUCTION") == "true":
-    DATABASES = {
-        "default": {
-            "ENGINE": os.getenv("DATABASE_ENGINE", "django.db.backends.postgresql"),
-            "NAME": os.getenv("DATABASE_NAME"),
-            "USER": os.getenv("DATABASE_USER"),
-            "PASSWORD": os.getenv("DATABASE_PASSWORD"),
-            "HOST": os.getenv("DATABASE_HOST", "localhost"),
-            "PORT": os.getenv("DATABASE_PORT", "5432"),
-        }
-    }
-else:
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.sqlite3",
-            "NAME": BASE_DIR / "db.sqlite3",
-        }
-    }
-
-
 AUTH_PASSWORD_VALIDATORS = [
     {
         "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
@@ -99,22 +78,14 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 LANGUAGE_CODE = "en-us"
-
 TIME_ZONE = "UTC"
-
 USE_I18N = True
-
 USE_TZ = True
 
 STATIC_URL = "/static/"
 STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
-
-STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, "static"),
-]
-
+STATICFILES_DIRS = [os.path.join(BASE_DIR, "static")]
 STATICFILES_STORAGE = "django.contrib.staticfiles.storage.StaticFilesStorage"
-
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
@@ -145,23 +116,6 @@ SIMPLE_JWT = {
 
 CORS_ALLOWED_ORIGINS = ["http://localhost:3000"]
 CSRF_TRUSTED_ORIGINS = ["https://test.taskcentro.com", "http://localhost:3000"]
-
-if not DEBUG:
-    SECURE_HSTS_SECONDS = 31536000
-    SECURE_SSL_REDIRECT = True
-    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
-    SESSION_COOKIE_SECURE = True
-    CSRF_COOKIE_SECURE = True
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-    SECURE_HSTS_PRELOAD = True
-else:
-    SECURE_HSTS_SECONDS = 0
-    SECURE_SSL_REDIRECT = False
-    SESSION_COOKIE_SECURE = False
-    CSRF_COOKIE_SECURE = False
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = False
-    SECURE_HSTS_PRELOAD = False
-
 
 LOGGING = {
     "version": 1,
