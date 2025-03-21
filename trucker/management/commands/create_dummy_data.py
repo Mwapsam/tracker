@@ -124,11 +124,9 @@ class Command(BaseCommand):
                     "remarks": fake.sentence(nb_words=6),
                     "signature": f"{first_name} {last_name}",
                     "adverse_conditions": random.choice([True, False]),
-                    "duty_window_start": now_time,
-                    "duty_window_end": now_time
-                    + timedelta(hours=random.randint(10, 14)),
                 },
             )
+
             if created:
                 self.stdout.write(self.style.SUCCESS(f"Created LogEntry {i+1}"))
             else:
