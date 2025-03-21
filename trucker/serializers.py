@@ -25,17 +25,31 @@ class CarrierSerializer(serializers.ModelSerializer):
         fields = ["name", "main_office_address", "home_terminal_address"]
 
 
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = "__all__"
+
+
 class DriverSerializer(serializers.ModelSerializer):
     carrier = CarrierSerializer()
+    user = UserSerializer()
 
     class Meta:
         model = Driver
         fields = "__all__"
 
 
+class VehicleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Vehicle
+        fields = ["truck_number", "trailer_number"]
+
+
 class LogEntrySerializer(serializers.ModelSerializer):
     duty_statuses = DutyStatusSerializer(many=True)
     driver = DriverSerializer()
+    vehicle = VehicleSerializer()
 
     class Meta:
         model = LogEntry
@@ -57,15 +71,3 @@ class LogEntrySerializer(serializers.ModelSerializer):
         for status_data in duty_statuses_data:
             DutyStatus.objects.create(log_entry=log_entry, **status_data)
         return log_entry
-
-
-class VehicleSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Vehicle
-        fields = ["truck_number", "trailer_number"]
-
-
-class UserSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = User
-        fields = "__all__"
