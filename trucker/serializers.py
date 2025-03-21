@@ -19,8 +19,23 @@ class DutyStatusSerializer(serializers.ModelSerializer):
         }
 
 
+class CarrierSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Carrier
+        fields = ["name", "main_office_address", "home_terminal_address"]
+
+
+class DriverSerializer(serializers.ModelSerializer):
+    carrier = CarrierSerializer()
+
+    class Meta:
+        model = Driver
+        fields = "__all__"
+
+
 class LogEntrySerializer(serializers.ModelSerializer):
     duty_statuses = DutyStatusSerializer(many=True)
+    driver = DriverSerializer()
 
     class Meta:
         model = LogEntry
@@ -33,6 +48,7 @@ class LogEntrySerializer(serializers.ModelSerializer):
             "remarks",
             "signature",
             "duty_statuses",
+            "driver",
         ]
 
     def create(self, validated_data):
@@ -48,19 +64,6 @@ class VehicleSerializer(serializers.ModelSerializer):
         model = Vehicle
         fields = ["truck_number", "trailer_number"]
 
-
-class CarrierSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Carrier
-        fields = ["name", "main_office_address", "home_terminal_address"]
-
-
-class DriverSerializer(serializers.ModelSerializer):
-    carrier = CarrierSerializer()
-
-    class Meta:
-        model = Driver
-        fields = "__all__"
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:

@@ -16,7 +16,7 @@ class LogEntryViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return LogEntry.objects.filter(driver__user=self.request.user)
+        return LogEntry.objects.all()
 
     def perform_create(self, serializer):
         try:

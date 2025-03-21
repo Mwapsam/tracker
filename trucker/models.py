@@ -14,7 +14,6 @@ from trucker.validators import (
     validate_overlapping_statuses,
 )
 
-
 class Carrier(models.Model):
     name = models.CharField(max_length=100)
     mc_number = models.CharField(max_length=20, unique=True, null=True, blank=True)
