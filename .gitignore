@@ -3,6 +3,8 @@ __pycache__/
 *.sqlite3
 *.log
 
+utils/logging.log
+
 db.sqlite3
 
 poetry.lock
