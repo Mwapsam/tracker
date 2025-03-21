@@ -13,6 +13,7 @@ from trucker.models import (
 )
 
 
+# Pytest Fixtures
 @pytest.fixture
 def user(db):
     return User.objects.create_user(
@@ -36,7 +37,11 @@ def carrier(db):
 
 @pytest.fixture
 def driver(db, user, carrier):
-    return Driver.objects.create(user=user, license_number="DL123456", carrier=carrier)
+    return Driver.objects.create(
+        user=user,
+        license_number="DL123456",
+        carrier=carrier,
+    )
 
 
 @pytest.fixture
@@ -51,28 +56,33 @@ def vehicle(db, carrier):
 
 @pytest.fixture
 def log_entry(db, driver, vehicle):
+    now = timezone.now()
     return LogEntry.objects.create(
         driver=driver,
         vehicle=vehicle,
-        date=timezone.now().date(),
+        date=now.date(),
         start_odometer=1000.0,
         end_odometer=1200.5,
-        duty_window_start=timezone.now(),
         signature="John Doe",
+        adverse_conditions=False,
     )
 
 
 @pytest.fixture
 def duty_status(db, log_entry):
+    now = timezone.now()
     return DutyStatus.objects.create(
         log_entry=log_entry,
         status="D",
-        start_time=timezone.now(),
-        end_time=timezone.now() + timedelta(hours=2),
+        start_time=now,
+        end_time=now + timedelta(hours=2),
         location_lat=34.0522,
         location_lon=-118.2437,
         location_name="Los Angeles, CA",
     )
+
+
+# Pytest Tests
 
 
 def test_carrier_str(carrier):
@@ -84,10 +94,7 @@ def test_driver_str(driver):
 
 
 def test_driver_remaining_hours(driver):
-    # Initial remaining hours for 70-hour cycle
     assert driver.remaining_hours() == 70.0
-
-    # Test after adding hours
     driver.current_cycle_used = 65.0
     assert driver.remaining_hours() == 5.0
 
@@ -100,29 +107,14 @@ def test_log_entry_total_miles(log_entry):
     assert log_entry.total_miles == 200.5
 
 
-def test_log_entry_duty_window_validation(log_entry):
-    # Valid 14-hour window
-    log_entry.duty_window_end = log_entry.duty_window_start + timedelta(hours=14)
-    log_entry.full_clean()  # Should not raise error
-
-    # Invalid window without adverse conditions
-    log_entry.duty_window_end += timedelta(hours=1)
-    with pytest.raises(ValidationError):
-        log_entry.full_clean()
-
-    # Valid with adverse conditions
-    log_entry.adverse_conditions = True
-    log_entry.full_clean()  # Should pass
-
-
 def test_duty_status_duration(duty_status):
     assert duty_status.duration == pytest.approx(2.0, rel=1e-6)
 
-def test_duty_status_overlap_prevention(log_entry):
-    # Create first status
+
+def test_duty_status_overlap_prevention(db, log_entry):
     start = timezone.now()
     end = start + timedelta(hours=2)
-    DutyStatus.objects.create(
+    status1 = DutyStatus.objects.create(
         log_entry=log_entry,
         status="D",
         start_time=start,
@@ -131,8 +123,6 @@ def test_duty_status_overlap_prevention(log_entry):
         location_lon=-118.2437,
         location_name="LA",
     )
-
-    # Overlapping status
     overlapping = DutyStatus(
         log_entry=log_entry,
         status="OFF",
@@ -142,25 +132,22 @@ def test_duty_status_overlap_prevention(log_entry):
         location_lon=-118.2437,
         location_name="LA",
     )
-
     with pytest.raises(ValidationError):
         overlapping.full_clean()
 
 
-def test_cycle_calculation_unique(driver):
+def test_cycle_calculation_unique(db, driver):
     date = timezone.now().date()
     CycleCalculation.objects.create(
         driver=driver, calculation_date=date, total_hours=50.0, cycle_type="70-hour"
     )
-
-    with pytest.raises(Exception):  # Expect IntegrityError
+    with pytest.raises(Exception):  
         CycleCalculation.objects.create(
             driver=driver, calculation_date=date, total_hours=60.0, cycle_type="70-hour"
         )
 
 
-def test_sleeper_berth_split_validation(log_entry):
-    # Valid 7+3 split
+def test_sleeper_berth_split_validation(db, log_entry):
     sb1 = DutyStatus.objects.create(
         log_entry=log_entry,
         status="SB",
@@ -170,7 +157,6 @@ def test_sleeper_berth_split_validation(log_entry):
         location_lon=-118.2437,
         location_name="Berth 1",
     )
-
     off_duty = DutyStatus.objects.create(
         log_entry=log_entry,
         status="OFF",
@@ -180,15 +166,140 @@ def test_sleeper_berth_split_validation(log_entry):
         location_lon=-118.2437,
         location_name="Rest",
     )
-
     log_entry.full_clean()
 
 
 def test_34_hour_restart(driver):
-    # Test restart tracking
     assert driver.last_34hr_restart is None
     restart_time = timezone.now() - timedelta(hours=35)
     driver.last_34hr_restart = restart_time
     driver.save()
-
     assert driver.last_34hr_restart == restart_time
+
+
+def test_odometer_validation(db, driver, vehicle):
+    today = timezone.now().date()
+    log_entry = LogEntry(
+        driver=driver,
+        vehicle=vehicle,
+        date=today,
+        start_odometer=1000,
+        end_odometer=900,  
+        remarks="Test remark",
+        signature="Test Signature",
+        adverse_conditions=False,
+    )
+    with pytest.raises(ValidationError):
+        log_entry.full_clean()
+
+
+def test_overlapping_status_validation(db, log_entry):
+    start = timezone.now()
+    status1 = DutyStatus(
+        log_entry=log_entry,
+        status="D",
+        start_time=start,
+        end_time=start + timedelta(hours=2),
+        location_name="Location A",
+    )
+    status1.full_clean()
+    status1.save()
+    status2 = DutyStatus(
+        log_entry=log_entry,
+        status="D",
+        start_time=start + timedelta(minutes=30),
+        end_time=start + timedelta(hours=3),
+        location_name="Location B",
+    )
+    with pytest.raises(ValidationError):
+        status2.full_clean()
+
+
+def test_14_hour_window_validation(db, log_entry):
+    start = timezone.now()
+    end = start + timedelta(hours=15)
+    status = DutyStatus(
+        log_entry=log_entry,
+        status="ON",
+        start_time=start,
+        end_time=end,
+        location_name="Long Shift Location",
+    )
+    with pytest.raises(ValidationError):
+        status.full_clean()
+
+
+def test_11_hour_driving_limit(db, log_entry):
+    now = timezone.now()
+    status1 = DutyStatus(
+        log_entry=log_entry,
+        status="D",
+        start_time=now,
+        end_time=now + timedelta(hours=6),
+        location_name="Driving A",
+    )
+    status1.full_clean()
+    status1.save()
+    status2 = DutyStatus(
+        log_entry=log_entry,
+        status="D",
+        start_time=now + timedelta(hours=6, minutes=30),
+        end_time=now + timedelta(hours=12, minutes=30),
+        location_name="Driving B",
+    )
+    with pytest.raises(ValidationError):
+        status2.full_clean()
+
+
+def test_30_minute_break_required(db, log_entry):
+    now = timezone.now()
+    status1 = DutyStatus(
+        log_entry=log_entry,
+        status="D",
+        start_time=now,
+        end_time=now + timedelta(hours=8),
+        location_name="Long Drive",
+    )
+    status1.full_clean()
+    status1.save()
+
+    status2 = DutyStatus(
+        log_entry=log_entry,
+        status="D",
+        start_time=now + timedelta(hours=8),
+        end_time=now + timedelta(hours=9),
+        location_name="No Break",
+    )
+    with pytest.raises(ValidationError):
+        status2.full_clean()
+
+
+def test_valid_break_after_driving(db, log_entry):
+    now = timezone.now()
+    status1 = DutyStatus(
+        log_entry=log_entry,
+        status="D",
+        start_time=now,
+        end_time=now + timedelta(hours=8),
+        location_name="Long Drive",
+    )
+    status1.full_clean()
+    status1.save()
+    break_status = DutyStatus(
+        log_entry=log_entry,
+        status="OFF",
+        start_time=now + timedelta(hours=8),
+        end_time=now + timedelta(hours=8, minutes=30),
+        location_name="Break",
+    )
+    break_status.full_clean()
+    break_status.save()
+    status2 = DutyStatus(
+        log_entry=log_entry,
+        status="D",
+        start_time=now + timedelta(hours=8, minutes=30),
+        end_time=now + timedelta(hours=9, minutes=30),
+        location_name="Post Break Drive",
+    )
+    status2.full_clean() 
+    status2.save()

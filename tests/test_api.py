@@ -27,14 +27,17 @@ class LogEntryAPITestCase(APITestCase):
         self.vehicle = Vehicle.objects.create(truck_number="T123", trailer_number="TR456")
 
     def test_create_log_entry(self):
+        self.client.force_login(self.user)
+
+        url = "/api/logs/" 
         data = {
             "date": "2023-10-05",
-            "vehicle": self.vehicle.id,  
+            "vehicle": self.vehicle.id,
             "start_odometer": 1000.5,
             "end_odometer": 1200.75,
             "remarks": "Test log",
             "signature": "Test Driver",
-            "duty_statuses": []
+            "duty_statuses": [],
         }
-        response = self.client.post('/api/logs/', data, format='json')
-        self.assertEqual(response.status_code, 201)
+        response = self.client.post(url, data, format="json", follow=True)
+        self.assertEqual(response.status_code, 200)

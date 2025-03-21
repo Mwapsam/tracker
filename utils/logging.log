@@ -1,0 +1,8 @@
+Request: GET /api/logs/
+Request Headers: {'HTTP_COOKIE': 'sessionid=rs6lcfz9lzluwu8smz8c0rrfy227uvzy', 'PATH_INFO': '/api/logs/', 'REMOTE_ADDR': '127.0.0.1', 'REQUEST_METHOD': 'GET', 'SCRIPT_NAME': '', 'SERVER_NAME': 'testserver', 'SERVER_PORT': '80', 'SERVER_PROTOCOL': 'HTTP/1.1', 'wsgi.version': (1, 0), 'wsgi.url_scheme': 'https', 'wsgi.input': <django.test.client.FakePayload object at 0x0000018B4B793AF0>, 'wsgi.errors': <_io.BytesIO object at 0x0000018B4B41A110>, 'wsgi.multiprocess': True, 'wsgi.multithread': False, 'wsgi.run_once': False, 'QUERY_STRING': '', 'format': 'json', 'HTTP_HOST': 'testserver', 'HTTP_AUTHORIZATION': 'Token bb3e9a9edb341c0f11991019cb7e7016fbda22d7'}
+Request Body: None
+Response: 200
+Request: GET /api/logs/
+Request Headers: {'HTTP_COOKIE': 'sessionid=oosz1h8an3jo00xhu0b5tmrl8y0fxyhu', 'PATH_INFO': '/api/logs/', 'REMOTE_ADDR': '127.0.0.1', 'REQUEST_METHOD': 'GET', 'SCRIPT_NAME': '', 'SERVER_NAME': 'testserver', 'SERVER_PORT': '80', 'SERVER_PROTOCOL': 'HTTP/1.1', 'wsgi.version': (1, 0), 'wsgi.url_scheme': 'https', 'wsgi.input': <django.test.client.FakePayload object at 0x000002364A989AB0>, 'wsgi.errors': <_io.BytesIO object at 0x000002364A7547C0>, 'wsgi.multiprocess': True, 'wsgi.multithread': False, 'wsgi.run_once': False, 'QUERY_STRING': '', 'format': 'json', 'HTTP_HOST': 'testserver', 'HTTP_AUTHORIZATION': 'Token f9bb2809ea6fc1f49095ef64abb853ec998906f6'}
+Request Body: None
+Response: 200
