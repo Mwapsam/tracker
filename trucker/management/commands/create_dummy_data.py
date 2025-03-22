@@ -15,6 +15,34 @@ from faker import Faker
 
 fake = Faker()
 
+KNOWN_LOCATIONS = [
+    {"lat": 34.052235, "lon": -118.243683, "name": "Los Angeles, CA"},
+    {"lat": 36.169941, "lon": -115.139832, "name": "Las Vegas, NV"},
+    {"lat": 40.712776, "lon": -74.005974, "name": "New York, NY"},
+    {"lat": 41.878113, "lon": -87.629799, "name": "Chicago, IL"},
+    {"lat": 29.760427, "lon": -95.369804, "name": "Houston, TX"},
+    {"lat": 33.448376, "lon": -112.074036, "name": "Phoenix, AZ"},
+    {"lat": 39.739236, "lon": -104.990251, "name": "Denver, CO"},
+    {"lat": 47.606209, "lon": -122.332069, "name": "Seattle, WA"},
+    {"lat": 25.761681, "lon": -80.191788, "name": "Miami, FL"},
+    {"lat": 32.776665, "lon": -96.796989, "name": "Dallas, TX"},
+    {"lat": 37.774929, "lon": -122.419418, "name": "San Francisco, CA"},
+    {"lat": 33.749099, "lon": -84.390185, "name": "Atlanta, GA"},
+    {"lat": 42.360082, "lon": -71.058880, "name": "Boston, MA"},
+    {"lat": 39.952583, "lon": -75.165222, "name": "Philadelphia, PA"},
+    {"lat": 35.227085, "lon": -80.843124, "name": "Charlotte, NC"},
+    {"lat": 28.538336, "lon": -81.379234, "name": "Orlando, FL"},
+    {"lat": 42.331427, "lon": -83.045753, "name": "Detroit, MI"},
+    {"lat": 38.627003, "lon": -90.199402, "name": "St. Louis, MO"},
+    {"lat": 44.977753, "lon": -93.265015, "name": "Minneapolis, MN"},
+    {"lat": 36.162664, "lon": -86.781602, "name": "Nashville, TN"},
+    {"lat": 39.099724, "lon": -94.578331, "name": "Kansas City, MO"},
+    {"lat": 29.951065, "lon": -90.071533, "name": "New Orleans, LA"},
+    {"lat": 45.505106, "lon": -122.675026, "name": "Portland, OR"},
+    {"lat": 31.761878, "lon": -106.485022, "name": "El Paso, TX"},
+    {"lat": 35.467560, "lon": -97.516428, "name": "Oklahoma City, OK"},
+]
+
 
 class Command(BaseCommand):
     help = "Creates dynamic dummy data for testing purposes with at least 10 drivers and their logs."
@@ -138,15 +166,23 @@ class Command(BaseCommand):
                 duty_start = now_time
                 duty_end = duty_start + timedelta(hours=random.randint(1, 4))
                 status_choice = random.choice(["D", "ON", "OFF", "SB"])
+
+                # 1) Pick a random location from KNOWN_LOCATIONS
+                chosen_location = random.choice(KNOWN_LOCATIONS)
+                lat = chosen_location["lat"]
+                lon = chosen_location["lon"]
+                location_name = chosen_location["name"]
+
                 duty_status, created = DutyStatus.objects.get_or_create(
                     log_entry=log_entry,
                     start_time=duty_start,
                     end_time=duty_end,
                     defaults={
                         "status": status_choice,
-                        "location_lat": float(fake.latitude()),
-                        "location_lon": float(fake.longitude()),
-                        "location_name": fake.city(),
+                        # 2) Use real coordinates and name
+                        "location_lat": lat,
+                        "location_lon": lon,
+                        "location_name": location_name,
                     },
                 )
                 if created:
