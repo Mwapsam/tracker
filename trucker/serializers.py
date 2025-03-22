@@ -9,7 +9,7 @@ class DutyStatusSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = DutyStatus
-        fields = ["status", "status_display", "start_time", "end_time", "location"]
+        fields = ["id", "status", "status_display", "start_time", "end_time", "location"]
 
     def get_location(self, obj):
         return {
