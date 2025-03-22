@@ -3,6 +3,7 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     CurrentUserAPIView,
     DutyStatusViewSet,
+    LatestStationsViewSet,
     LogEntryViewSet,
     DriverViewSet,
     VehicleViewSet,
@@ -27,4 +28,9 @@ urlpatterns = [
     path("api/token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("api/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     path("api/current-user/", CurrentUserAPIView.as_view(), name="current-user"),
+    path(
+        "api/latest-stations/<int:driver_id>/",
+        LatestStationsViewSet.as_view(),
+        name="latest-stations",
+    ),
 ]

@@ -58,3 +58,21 @@ class DutyStatusViewSet(viewsets.ModelViewSet):
     queryset = DutyStatus.objects.all()
     serializer_class = DutyStatusSerializer
     permission_classes = [IsAuthenticated]
+
+
+class LatestStationsViewSet(views.APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, driver_id):
+        log_entry = (
+            LogEntry.objects.filter(driver__id=driver_id).order_by("-date").first()
+        )
+
+        if not log_entry:
+            return Response({"error": "No log entry found for this driver"}, status=404)
+
+        substations = log_entry.duty_statuses.all().order_by("-start_time")[:3]
+
+        data = DutyStatusSerializer(substations, many=True).data
+
+        return Response(data, status=200)
