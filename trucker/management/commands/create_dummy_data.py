@@ -1,8 +1,10 @@
 import random
 from django.core.management.base import BaseCommand
 from django.utils import timezone
-from datetime import timedelta
+from datetime import timedelta, datetime
 from django.contrib.auth.models import User
+from faker import Faker
+
 from trucker.models import (
     Carrier,
     Driver,
@@ -11,7 +13,6 @@ from trucker.models import (
     DutyStatus,
     CycleCalculation,
 )
-from faker import Faker
 
 fake = Faker()
 
@@ -43,77 +44,68 @@ KNOWN_LOCATIONS = [
     {"lat": 35.467560, "lon": -97.516428, "name": "Oklahoma City, OK"},
 ]
 
+HOS_RULES = {
+    "max_driving_day": 11, 
+    "max_duty_day": 14,  
+    "cycle_days_70": 8,  
+    "cycle_days_60": 7,  
+}
+
+
+def day_bounds(dt: datetime):
+    """Return start-of-day and end-of-day for dt."""
+    start = dt.replace(hour=0, minute=0, second=0, microsecond=0)
+    end = start + timedelta(days=1)
+    return start, end
+
 
 class Command(BaseCommand):
-    help = "Creates dynamic dummy data for testing purposes with at least 10 drivers and their logs."
+    help = "Creates HOS-compliant(ish) dummy data with realistic driver movements."
 
     def handle(self, *args, **options):
         carrier_name = fake.company()
         mc_number = "MC" + "".join(str(random.randint(0, 9)) for _ in range(6))
-        main_office_address = fake.address()
-        home_terminal_address = fake.address()
         hos_cycle_choice = random.choice(["60", "70"])
 
-        carrier, created = Carrier.objects.get_or_create(
+        carrier, _ = Carrier.objects.get_or_create(
             mc_number=mc_number,
             defaults={
                 "name": carrier_name,
-                "main_office_address": main_office_address,
-                "home_terminal_address": home_terminal_address,
+                "main_office_address": fake.address(),
+                "home_terminal_address": fake.address(),
                 "hos_cycle_choice": hos_cycle_choice,
             },
         )
-        if created:
-            self.stdout.write(self.style.SUCCESS(f"Created Carrier: {carrier_name}"))
-        else:
-            self.stdout.write("Carrier already exists.")
 
-        for driver_index in range(1, 11):
-            username = fake.user_name() + str(driver_index)
+        for i in range(1, 11):
+            username = fake.user_name() + str(i)
             first_name = fake.first_name()
             last_name = fake.last_name()
-            email = fake.email()
 
-            user, created = User.objects.get_or_create(
+            user, _ = User.objects.get_or_create(
                 username=username,
                 defaults={
                     "first_name": first_name,
                     "last_name": last_name,
-                    "email": email,
+                    "email": fake.email(),
                 },
             )
-            if created:
-                user.set_password("password123")
-                user.save()
-                self.stdout.write(self.style.SUCCESS(f"Created User: {username}"))
-            else:
-                self.stdout.write(f"User {username} already exists.")
+            user.set_password("password123")
+            user.save()
 
-            license_number = "DL" + "".join(str(random.randint(0, 9)) for _ in range(6))
-            driver, created = Driver.objects.get_or_create(
+            driver, _ = Driver.objects.get_or_create(
                 user=user,
                 defaults={
-                    "license_number": license_number,
+                    "license_number": "DL"
+                    + "".join(str(random.randint(0, 9)) for _ in range(6)),
                     "carrier": carrier,
-                    "current_cycle_used": round(
-                        (
-                            random.uniform(0, 70)
-                            if hos_cycle_choice == "70"
-                            else random.uniform(0, 60)
-                        ),
-                        2,
-                    ),
-                    "last_34hr_restart": timezone.now()
-                    - timedelta(days=random.randint(1, 3)),
+                    "current_cycle_used": 0,
+                    "last_34hr_restart": timezone.now() - timedelta(days=1),
                 },
             )
-            if created:
-                self.stdout.write(self.style.SUCCESS(f"Created Driver {driver_index}"))
-            else:
-                self.stdout.write(f"Driver {driver_index} already exists.")
 
             vin = fake.bothify(
-                text="1????????????????", letters="ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                "1????????????????", letters="ABCDEFGHIJKLMNOPQRSTUVWXYZ"
             )
             truck_number = "TRUCK" + "".join(
                 str(random.randint(0, 9)) for _ in range(3)
@@ -121,7 +113,8 @@ class Command(BaseCommand):
             trailer_number = "TRAILER" + "".join(
                 str(random.randint(0, 9)) for _ in range(3)
             )
-            vehicle, created = Vehicle.objects.get_or_create(
+
+            vehicle, _ = Vehicle.objects.get_or_create(
                 vin=vin,
                 defaults={
                     "carrier": carrier,
@@ -129,91 +122,150 @@ class Command(BaseCommand):
                     "trailer_number": trailer_number,
                 },
             )
-            if created:
-                self.stdout.write(
-                    self.style.SUCCESS(f"Created Vehicle for Driver {driver_index}")
-                )
-            else:
-                self.stdout.write(f"Vehicle for Driver {driver_index} already exists.")
 
-            for log_index in range(1, 11):
-                now_time = timezone.now() + timedelta(minutes=log_index)
-                start_odometer = round(random.uniform(1000, 5000), 2)
-                end_odometer = start_odometer + round(random.uniform(50, 500), 2)
-                log_entry, created = LogEntry.objects.get_or_create(
-                    driver=driver,
-                    vehicle=vehicle,
-                    date=now_time.date(),
-                    defaults={
-                        "start_odometer": start_odometer,
-                        "end_odometer": end_odometer,
-                        "remarks": fake.sentence(nb_words=6),
-                        "signature": f"{first_name} {last_name}",
-                        "adverse_conditions": random.choice([True, False]),
-                    },
-                )
-                if created:
-                    self.stdout.write(
-                        self.style.SUCCESS(
-                            f"Created LogEntry {log_index} for Driver {driver_index}"
-                        )
-                    )
-                else:
-                    self.stdout.write(
-                        f"LogEntry {log_index} for Driver {driver_index} already exists."
-                    )
+            self.generate_logs_for_driver(driver, vehicle, days=7)
 
-                duty_start = now_time
-                duty_end = duty_start + timedelta(hours=random.randint(1, 4))
-                status_choice = random.choice(["D", "ON", "OFF", "SB"])
-
-                # 1) Pick a random location from KNOWN_LOCATIONS
-                chosen_location = random.choice(KNOWN_LOCATIONS)
-                lat = chosen_location["lat"]
-                lon = chosen_location["lon"]
-                location_name = chosen_location["name"]
-
-                duty_status, created = DutyStatus.objects.get_or_create(
-                    log_entry=log_entry,
-                    start_time=duty_start,
-                    end_time=duty_end,
-                    defaults={
-                        "status": status_choice,
-                        # 2) Use real coordinates and name
-                        "location_lat": lat,
-                        "location_lon": lon,
-                        "location_name": location_name,
-                    },
-                )
-                if created:
-                    self.stdout.write(
-                        self.style.SUCCESS(
-                            f"Created DutyStatus for LogEntry {log_index} of Driver {driver_index}"
-                        )
-                    )
-                else:
-                    self.stdout.write(
-                        f"DutyStatus for LogEntry {log_index} of Driver {driver_index} already exists."
-                    )
-
-            total_hours = round(random.uniform(0, 70), 2)
-            cycle_calculation, created = CycleCalculation.objects.get_or_create(
+            CycleCalculation.objects.get_or_create(
                 driver=driver,
                 calculation_date=timezone.now().date(),
                 defaults={
-                    "total_hours": total_hours,
+                    "total_hours": random.uniform(0, 70),
                     "cycle_type": f"{hos_cycle_choice}-hour",
                 },
             )
-            if created:
-                self.stdout.write(
-                    self.style.SUCCESS(
-                        f"Created CycleCalculation for Driver {driver_index}"
-                    )
-                )
-            else:
-                self.stdout.write(
-                    f"CycleCalculation for Driver {driver_index} already exists."
+
+        self.stdout.write(self.style.SUCCESS("Created HOS-compliant(ish) dummy data!"))
+
+    def generate_logs_for_driver(self, driver: Driver, vehicle: Vehicle, days=7):
+        """
+        Generate a set of LogEntries and DutyStatus objects that attempt to follow
+        basic HOS constraints: max 11 hours driving, max 14 hours on-duty per day,
+        plus 10-hour breaks between 'shifts'.
+        """
+        current_time = timezone.now() - timedelta(days=days)
+        current_odometer = random.uniform(1000, 5000)
+
+        daily_logs = {}
+
+        while current_time < timezone.now():
+            day_start, day_end = day_bounds(current_time)
+            if current_time >= day_end:
+                current_time = day_end
+                continue
+
+            date_key = current_time.date()
+            if date_key not in daily_logs:
+                daily_logs[date_key] = LogEntry.objects.create(
+                    driver=driver,
+                    vehicle=vehicle,
+                    date=date_key,
+                    start_odometer=current_odometer,
+                    end_odometer=current_odometer,
+                    remarks=fake.sentence(),
+                    signature=f"{driver.user.first_name} {driver.user.last_name}",
+                    adverse_conditions=random.choice([True, False]),
                 )
 
-        self.stdout.write(self.style.SUCCESS("Dynamic dummy data creation complete."))
+            log_entry = daily_logs[date_key]
+
+            day_driving_hours, day_duty_hours = self.get_daily_totals(log_entry)
+
+            if (
+                day_driving_hours >= HOS_RULES["max_driving_day"]
+                or day_duty_hours >= HOS_RULES["max_duty_day"]
+            ):
+                status_hours = random.uniform(10, 12)
+                self.create_status(
+                    log_entry,
+                    "OFF",
+                    current_time,
+                    current_time + timedelta(hours=status_hours),
+                )
+                current_time += timedelta(hours=status_hours)
+                continue
+
+            status_type = self.pick_next_status(day_driving_hours, day_duty_hours)
+
+            max_hours_for_status = self.get_max_status_hours(
+                status_type, day_driving_hours, day_duty_hours
+            )
+            status_hours = random.uniform(1, max_hours_for_status)
+
+            start_time = current_time
+            end_time = current_time + timedelta(hours=status_hours)
+            location = random.choice(KNOWN_LOCATIONS)
+            self.create_status(log_entry, status_type, start_time, end_time, location)
+
+            if status_type == "D":
+                mph = 50  
+                miles = status_hours * mph
+                current_odometer += miles
+                log_entry.end_odometer = current_odometer
+                log_entry.save()
+
+            current_time = end_time
+
+    def pick_next_status(self, day_driving_hours, day_duty_hours):
+        """
+        Decide next status in a naive way:
+         - If driving is under 8 hours, we might choose to drive again.
+         - If we've driven ~8 hours, maybe pick ON or OFF.
+         - Otherwise random among ON/OFF/SB.
+        """
+        if day_driving_hours < 8 and day_duty_hours < 12:
+            return random.choice(["D", "ON", "OFF", "SB"])
+        else:
+            return random.choice(["ON", "OFF", "SB"])
+
+    def get_max_status_hours(self, status_type, day_driving, day_duty):
+        """
+        Return how many hours we can legally spend in this status
+        before hitting daily limits.
+        """
+        remaining_drive = HOS_RULES["max_driving_day"] - day_driving
+        remaining_duty = HOS_RULES["max_duty_day"] - day_duty
+
+        if status_type == "D":
+            return max(
+                1, min(4, remaining_drive)
+            )  
+        elif status_type == "ON":
+            return max(1, min(4, remaining_duty)) 
+        else:
+            return max(1, 10)
+
+    def create_status(
+        self, log_entry, status_type, start_time, end_time, location=None
+    ):
+        """Helper to create a DutyStatus record."""
+        if not location:
+            location = random.choice(KNOWN_LOCATIONS)
+
+        DutyStatus.objects.create(
+            log_entry=log_entry,
+            status=status_type,
+            start_time=start_time,
+            end_time=end_time,
+            location_lat=location["lat"],
+            location_lon=location["lon"],
+            location_name=location["name"],
+        )
+
+    def get_daily_totals(self, log_entry):
+        """
+        Calculate how many hours of driving and on-duty
+        have been recorded for this log entry's day so far.
+        """
+        duty_statuses = log_entry.duty_statuses.all()
+        driving_hours = 0.0
+        duty_hours = 0.0
+
+        for ds in duty_statuses:
+            duration = (ds.end_time - ds.start_time).total_seconds() / 3600
+            if ds.status == "D":
+                driving_hours += duration
+                duty_hours += duration
+            elif ds.status == "ON":
+                duty_hours += duration
+
+        return driving_hours, duty_hours
