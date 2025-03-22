@@ -14,6 +14,7 @@ from trucker.validators import (
     validate_overlapping_statuses,
 )
 
+
 class Carrier(models.Model):
     name = models.CharField(max_length=100)
     mc_number = models.CharField(max_length=20, unique=True, null=True, blank=True)
@@ -92,6 +93,7 @@ class LogEntry(models.Model):
             )
 
     def save(self, *args, **kwargs):
+        self.full_clean()
         self.total_miles = self.end_odometer - self.start_odometer
         super().save(*args, **kwargs)
 
@@ -144,15 +146,13 @@ class DutyStatus(models.Model):
             validate_30_minute_break(statuses)
         if self.status in ["OFF", "SB"]:
             check_34_hour_restart(self)
-    
+
     def get_status_display(self):
         mapping = dict(self.STATUS_CHOICES)
         return mapping.get(self.status, self.status)
 
-
     def __str__(self):
         return f"{self.get_status_display()} ({self.start_time} - {self.end_time})"
-
 
     class Meta:
         ordering = ["start_time"]

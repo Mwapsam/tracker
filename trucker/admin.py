@@ -25,7 +25,14 @@ class VehicleAdmin(admin.ModelAdmin):
 
 @admin.register(LogEntry)
 class LogEntryAdmin(admin.ModelAdmin):
-    list_display = ("date", "driver", "vehicle", "start_odometer", "end_odometer")
+    list_display = (
+        "date",
+        "driver",
+        "vehicle",
+        "start_odometer",
+        "end_odometer",
+        "total_miles",
+    )
     list_filter = ("date", "driver", "vehicle")
 
 

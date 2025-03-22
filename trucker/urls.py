@@ -2,6 +2,7 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 from .views import (
     CurrentUserAPIView,
+    DutyStatusViewSet,
     LogEntryViewSet,
     DriverViewSet,
     VehicleViewSet,
@@ -18,6 +19,7 @@ router.register(r"logs", LogEntryViewSet, basename="log")
 router.register(r"drivers", DriverViewSet)
 router.register(r"vehicles", VehicleViewSet)
 router.register(r"carriers", CarrierViewSet)
+router.register(r"duty-status", DutyStatusViewSet)
 
 urlpatterns = [
     path("api/", include(router.urls)),

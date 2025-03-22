@@ -1,8 +1,9 @@
 from rest_framework import viewsets, serializers, views
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from .models import LogEntry, Driver, Vehicle, Carrier
+from .models import DutyStatus, LogEntry, Driver, Vehicle, Carrier
 from .serializers import (
+    DutyStatusSerializer,
     LogEntrySerializer,
     DriverSerializer,
     UserSerializer,
@@ -51,3 +52,9 @@ class CurrentUserAPIView(views.APIView):
         user = request.user
         data = UserSerializer(user).data
         return Response(data, status=200)
+
+
+class DutyStatusViewSet(viewsets.ModelViewSet):
+    queryset = DutyStatus.objects.all()
+    serializer_class = DutyStatusSerializer
+    permission_classes = [IsAuthenticated]
