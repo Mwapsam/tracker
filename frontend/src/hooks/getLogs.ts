@@ -26,13 +26,16 @@ interface LogEntry {
   duty_statuses: DutyStatus[];
 }
 
-export default async function fetchLogs() {
+export default async function fetchLogs(): Promise<{ data: LogEntry[] } | undefined> {
   try {
     const res = await axiosInstance.get<LogEntry[]>("/api/logs/");
-    return { data: res.data };
+    console.log(res);
+
+    return res;
   } catch (error) {
     if (axios.isAxiosError(error)) {
       throw new Error(error.message);
+      return undefined;
     }
   }
 }

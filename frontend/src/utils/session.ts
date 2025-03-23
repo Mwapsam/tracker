@@ -65,12 +65,12 @@ axiosInstance.interceptors.response.use(
           refresh: refreshToken,
         });
 
-        await storeToken(data.data.access, "access");
-        if (data.data.refresh) {
-          await storeToken(data.data.refresh, "refresh");
+        await storeToken(data.access, "access");
+        if (data.refresh) {
+          await storeToken(data.refresh, "refresh");
         }
-        originalRequest.headers.Authorization = `Bearer ${data.data.access}`;
-        axiosInstance.defaults.headers.common.Authorization = `Bearer ${data.data.access}`;
+        originalRequest.headers.Authorization = `Bearer ${data.access}`;
+        axiosInstance.defaults.headers.common.Authorization = `Bearer ${data.access}`;
         return axiosInstance(originalRequest);
       } catch (err) {
         await removeTokens();

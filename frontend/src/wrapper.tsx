@@ -8,7 +8,6 @@ const Wrapper = ({ children }: { children: React.ReactNode }) => {
       style={{
         background: "var(--gray-a2)",
         borderRadius: "var(--radius-3)",
-        height: "100vh",
         overflowY: "auto",
       }}
     >
@@ -33,7 +32,7 @@ const Wrapper = ({ children }: { children: React.ReactNode }) => {
         <a href="#">Daily Logs</a>
       </nav>
 
-      <Box style={{ marginTop: "6rem", padding: "1rem" }}>{children}</Box>
+      <Box>{children}</Box>
     </Box>
   );
 };
