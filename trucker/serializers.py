@@ -81,6 +81,7 @@ class LogEntrySerializer(serializers.ModelSerializer):
 
 
 class LogEntryCreateSerializer(serializers.ModelSerializer):
+    duty_statuses = DutyStatusSerializer(many=True, required=False)
     class Meta:
         model = LogEntry
         fields = [
