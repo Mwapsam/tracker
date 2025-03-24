@@ -17,16 +17,7 @@ class LogEntryViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return LogEntry.objects.all()
-
-    def perform_create(self, serializer):
-        try:
-            driver = Driver.objects.get(user=self.request.user)
-        except Driver.DoesNotExist:
-            raise serializers.ValidationError(
-                "Driver profile does not exist for this user."
-            )
-        serializer.save(driver=driver)
+        return LogEntry.objects.all().order_by("-date")
 
 
 class DriverViewSet(viewsets.ModelViewSet):
