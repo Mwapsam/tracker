@@ -4,6 +4,7 @@ from rest_framework.permissions import IsAuthenticated
 from .models import DutyStatus, LogEntry, Driver, Vehicle, Carrier
 from .serializers import (
     DutyStatusSerializer,
+    LogEntryCreateSerializer,
     LogEntrySerializer,
     DriverSerializer,
     UserSerializer,
@@ -18,6 +19,13 @@ class LogEntryViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         return LogEntry.objects.all().order_by("-date")
+
+    def create(self, request, *args, **kwargs):
+        serializer = LogEntryCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status=201)
+    
 
 
 class DriverViewSet(viewsets.ModelViewSet):
