@@ -80,36 +80,19 @@ class LogEntrySerializer(serializers.ModelSerializer):
         ]
 
     def create(self, validated_data):
-        duty_statuses_data = validated_data.pop("duty_statuses")
+        duty_statuses_data = validated_data.pop("duty_statuses", [])
+        driver_data = validated_data.pop("driver", None)
+        vehicle_data = validated_data.pop("vehicle", None)
+
+        if driver_data and "id" in driver_data:
+            driver = Driver.objects.get(pk=driver_data["id"])
+            validated_data["driver"] = driver
+
+        if vehicle_data and "id" in vehicle_data:
+            vehicle = Vehicle.objects.get(pk=vehicle_data["id"])
+            validated_data["vehicle"] = vehicle
+
         log_entry = LogEntry.objects.create(**validated_data)
         for status_data in duty_statuses_data:
             DutyStatus.objects.create(log_entry=log_entry, **status_data)
         return log_entry
-
-    def update(self, instance, validated_data):
-        duty_statuses_data = validated_data.pop("duty_statuses")
-        duty_statuses = instance.duty_statuses.all()
-        duty_statuses = list(duty_statuses)
-        instance.date = validated_data.get("date", instance.date)
-        instance.vehicle = validated_data.get("vehicle", instance.vehicle)
-        instance.start_odometer = validated_data.get(
-            "start_odometer", instance.start_odometer
-        )
-        instance.end_odometer = validated_data.get(
-            "end_odometer", instance.end_odometer
-        )
-        instance.remarks = validated_data.get("remarks", instance.remarks)
-        instance.signature = validated_data.get("signature", instance.signature)
-        instance.save()
-        for status_data in duty_statuses_data:
-            status = duty_statuses.pop(0)
-            status.status = status_data.get("status", status.status)
-            status.start_time = status_data.get("start_time", status.start_time)
-            status.end_time = status_data.get("end_time", status.end_time)
-            status.location_lat = status_data.get("location_lat", status.location_lat)
-            status.location_lon = status_data.get("location_lon", status.location_lon)
-            status.location_name = status_data.get(
-                "location_name", status.location_name
-            )
-            status.save()
-        return instance
