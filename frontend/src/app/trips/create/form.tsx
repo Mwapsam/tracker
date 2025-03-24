@@ -1,12 +1,18 @@
 "use client";
 
-import React, { useState, ChangeEvent, FormEvent } from "react";
+import React, {
+  useState,
+  ChangeEvent,
+  FormEvent,
+  useRef,
+  useEffect,
+  useCallback,
+} from "react";
 import { Box, Flex, Card, Text, Heading, Button } from "@radix-ui/themes";
 import Wrapper from "@/wrapper";
 import createLog from "@/app/actions/createLog";
 import { Driver, LogEntryFormData, Vehicle } from "@/utils";
 import { useRouter } from "next/navigation";
-import DutyStatusLocationInput from "./DutyStatusLocationInput";
 
 type LogEntryFormProps = {
   drivers: Driver[];
@@ -30,6 +36,76 @@ export default function LogEntryForm({ drivers, vehicles }: LogEntryFormProps) {
   });
 
   const router = useRouter();
+  const autocompleteRefs = useRef<HTMLInputElement[]>([]);
+  const autocompleteInstances = useRef<google.maps.places.Autocomplete[]>([]);
+
+  useEffect(() => {
+    let script: HTMLScriptElement | null = null;
+
+    const initializeAutocompletes = () => {
+      autocompleteRefs.current.forEach((input, index) => {
+        if (!input || autocompleteInstances.current[index]) return;
+
+        const autocomplete = new window.google.maps.places.Autocomplete(input, {
+          types: ["establishment", "geocode"],
+          fields: ["name", "formatted_address", "geometry"],
+        });
+
+        autocomplete.addListener("place_changed", () => {
+          const place = autocomplete.getPlace();
+          handlePlaceSelect(index, place);
+        });
+
+        autocompleteInstances.current[index] = autocomplete;
+      });
+    };
+
+    if (!window.google?.maps?.places) {
+      script = document.createElement("script");
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places`;
+      script.async = true;
+      script.defer = true;
+      document.head.appendChild(script);
+      script.onload = initializeAutocompletes;
+    } else {
+      initializeAutocompletes();
+    }
+
+    return () => {
+      script?.remove();
+      autocompleteInstances.current.forEach((instance) => {
+        if (instance?.unbindAll) instance.unbindAll();
+      });
+    };
+  }, [formData.duty_statuses.length]);
+
+  // Ref callback for inputs
+  const setAutocompleteRef = useCallback(
+    (el: HTMLInputElement | null, index: number) => {
+      if (el) {
+        autocompleteRefs.current[index] = el;
+      }
+    },
+    []
+  );
+
+  const handlePlaceSelect = useCallback(
+    (index: number, place: google.maps.places.PlaceResult) => {
+      if (!place.geometry?.location) return;
+
+      setFormData((prev) => {
+        const updatedStatuses = [...prev.duty_statuses];
+        updatedStatuses[index] = {
+          ...updatedStatuses[index],
+          location_name: place.name || place.formatted_address || "",
+          location_lat: place.geometry?.location?.lat().toString() || "",
+          location_lon: place.geometry?.location?.lng().toString() || "",
+        };
+        return { ...prev, duty_statuses: updatedStatuses };
+      });
+    },
+    []
+  );
 
   const [loading, setLoading] = useState(false);
 
@@ -87,6 +163,9 @@ export default function LogEntryForm({ drivers, vehicles }: LogEntryFormProps) {
         vehicle: formData.vehicle,
       };
 
+      console.log("Form data:", formDataCopy);
+      
+
       const response = await createLog(formDataCopy);
       if (response?.id) {
         setFormData({
@@ -111,33 +190,6 @@ export default function LogEntryForm({ drivers, vehicles }: LogEntryFormProps) {
     }
   };
 
-  console.log("formData", formData);
-
-  const handlePlaceSelect = (
-    index: number,
-    place: google.maps.places.PlaceResult
-  ) => {
-    console.log("Place selection triggered for index:", index);
-    console.log("Received place object:", place);
-
-    const locationName = place.name || place.formatted_address || "";
-    const lat = place.geometry?.location?.lat()?.toString() || "";
-    const lng = place.geometry?.location?.lng()?.toString() || "";
-
-    setFormData((prev) => {
-      const updatedStatuses = prev.duty_statuses.map((ds, i) =>
-        i === index
-          ? {
-              ...ds,
-              location_name: locationName,
-              location_lat: lat,
-              location_lon: lng,
-            }
-          : ds
-      );
-      return { ...prev, duty_statuses: updatedStatuses };
-    });
-  };
 
   return (
     <Wrapper>
@@ -367,10 +419,11 @@ export default function LogEntryForm({ drivers, vehicles }: LogEntryFormProps) {
                       <Text size="2" mb="1" weight="bold">
                         Location
                       </Text>
-                      <DutyStatusLocationInput
-                        index={index}
-                        locationName={status.location_name}
-                        handlePlaceSelect={handlePlaceSelect}
+                      <input
+                        placeholder="Type location"
+                        ref={(el) => setAutocompleteRef(el, index)}
+                        defaultValue={status.location_name}
+                        style={{ width: "100%", padding: "0.5rem" }}
                       />
                     </Box>
                   </Flex>

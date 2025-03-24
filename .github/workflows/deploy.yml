@@ -47,6 +47,8 @@ jobs:
           DATABASE_PORT=${{ secrets.DATABASE_PORT }}
           DEBUG=${{ secrets.DEBUG }}
           DJANGO_SETTINGS_MODULE=${{ secrets.DJANGO_SETTINGS_MODULE}}
+          MAPS_API_KEY=${{ secrets.MAPS_API_KEY }}
+          SECRET_KEY=${{ secrets.SECRET_KEY }}
           EOF
           "
           # Secure the .env file so only ubuntu user can read/write it

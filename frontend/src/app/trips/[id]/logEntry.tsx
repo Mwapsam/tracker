@@ -13,7 +13,6 @@ import {
   Separator,
   Text,
 } from "@radix-ui/themes";
-import { useRouter } from "next/navigation";
 import React from "react";
 
 type Props = {
@@ -24,11 +23,6 @@ type Props = {
 const LogEntry = (props: Props) => {
   const { logDate, logEntry } = props;
 
-  const router = useRouter();
-
-  const handleRowClick = (id: string) => {
-    router.push(`/duty_status/${id}/`);
-  };
 
   const mapData = logEntry.duty_statuses.map((data) => {
     return {
@@ -54,8 +48,8 @@ const LogEntry = (props: Props) => {
               <Avatar size="5" radius="full" fallback="T" color="indigo" />
               <Box>
                 <Text as="div" size="4" weight="bold">
-                  {logEntry.driver.user.first_name}{" "}
-                  {logEntry.driver.user.last_name}
+                  {logEntry.driver.user?.first_name}{" "}
+                  {logEntry.driver.user?.last_name}
                 </Text>
                 <Text as="div" size="4" color="gray">
                   License: {logEntry.driver.license_number}
@@ -166,8 +160,6 @@ const LogEntry = (props: Props) => {
             <Card
               key={idx}
               size="2"
-              onClick={() => handleRowClick(status.id)}
-              style={{ cursor: "pointer" }}
             >
               <Flex direction="column" gap="1">
                 <Text size="2" weight="bold">

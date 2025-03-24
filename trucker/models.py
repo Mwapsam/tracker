@@ -6,6 +6,7 @@ from django.utils import timezone
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 
+from trucker.services.route_services import calculate_route_distance
 from trucker.validators import (
     check_34_hour_restart,
     validate_11_hour_driving_limit,
@@ -61,6 +62,27 @@ class Driver(models.Model):
 
     def __str__(self):
         return f"{self.user.get_full_name()} ({self.license_number})"
+
+
+class Trip(models.Model):
+    driver = models.ForeignKey("Driver", on_delete=models.CASCADE)
+    current_location = models.CharField(max_length=200)
+    pickup_location = models.CharField(max_length=200)
+    dropoff_location = models.CharField(max_length=200)
+    distance = models.FloatField(null=True, blank=True)
+    estimated_duration = models.DurationField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    start_time = models.DateTimeField(default=timezone.now)
+
+    def save(self, *args, **kwargs):
+        if not self.distance:
+            try:
+                self.distance, self.estimated_duration = calculate_route_distance(
+                    self.current_location, self.pickup_location, self.dropoff_location
+                )
+            except Exception as e:
+                raise ValidationError(f"Failed to calculate route distance: {e}")
+        super().save(*args, **kwargs)
 
 
 class Vehicle(models.Model):

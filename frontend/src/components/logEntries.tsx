@@ -18,8 +18,17 @@ type Props = {
   logEntries: LogEntry[];
 };
 
+const Spinner = () => (
+  <div className="spinner">
+    <div className="spinner-circle" />
+  </div>
+);
+
 export default function LogEntries({ logEntries }: Props) {
   const router = useRouter();
+
+  const [navigatingId, setNavigatingId] = useState<number | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
 
   const [page, setPage] = useState(1);
   const pageSize = 15;
@@ -31,6 +40,7 @@ export default function LogEntries({ logEntries }: Props) {
   const displayedEntries = logEntries.slice(startIndex, endIndex);
 
   const handleRowClick = (id: number) => {
+    setNavigatingId(id);
     router.push(`/trips/${id}`);
   };
 
@@ -57,10 +67,19 @@ export default function LogEntries({ logEntries }: Props) {
           <Button
             variant="outline"
             onClick={() => {
+              setIsCreating(true);
               router.push("/trips/create");
             }}
+            disabled={isCreating}
           >
-            Add New Trip
+            {isCreating ? (
+              <Flex align="center" gap="2">
+                <Spinner />
+                Creating...
+              </Flex>
+            ) : (
+              "Add New Trip"
+            )}
           </Button>
         </Flex>
 
@@ -96,12 +115,15 @@ export default function LogEntries({ logEntries }: Props) {
                   <Table.Row
                     key={entry.id}
                     onClick={() => handleRowClick(entry.id)}
-                    style={{ cursor: "pointer" }}
+                    style={{
+                      cursor: navigatingId === entry.id ? "wait" : "pointer",
+                      opacity: navigatingId === entry.id ? 0.7 : 1,
+                    }}
                   >
                     <Table.RowHeaderCell>{entry.id}</Table.RowHeaderCell>
                     <Table.Cell>
-                      {entry.driver.user.first_name}{" "}
-                      {entry.driver.user.last_name}
+                      {entry.driver?.user?.first_name}{" "}
+                      {entry.driver?.user?.last_name}
                     </Table.Cell>
                     <Table.Cell>{entry.start_odometer}</Table.Cell>
                     <Table.Cell>{entry.vehicle.truck_number}</Table.Cell>
@@ -139,6 +161,29 @@ export default function LogEntries({ logEntries }: Props) {
           </Box>
         </Card>
       </Box>
+      <style jsx>{`
+        .spinner {
+          display: inline-block;
+          width: 1rem;
+          height: 1rem;
+          animation: spin 0.6s linear infinite;
+        }
+
+        .spinner-circle {
+          width: 100%;
+          height: 100%;
+          border: 2px solid #ccc;
+          border-top-color: var(--accent-11);
+          border-radius: 50%;
+          animation: spin 0.6s linear infinite;
+        }
+
+        @keyframes spin {
+          to {
+            transform: rotate(360deg);
+          }
+        }
+      `}</style>
     </Wrapper>
   );
 }

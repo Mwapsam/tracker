@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import Driver, Carrier, Vehicle, LogEntry, DutyStatus
+from .models import Driver, Carrier, Trip, Vehicle, LogEntry, DutyStatus
 
 
 class DutyStatusSerializer(serializers.ModelSerializer):
@@ -113,3 +113,31 @@ class LogEntryCreateSerializer(serializers.ModelSerializer):
         for ds_data in duty_statuses_data:
             DutyStatus.objects.create(log_entry=log_entry, **ds_data)
         return log_entry
+
+
+class TripSerializer(serializers.ModelSerializer):
+    driver_name = serializers.CharField(
+        source="driver.user.get_full_name", read_only=True
+    )
+    remaining_hours = serializers.FloatField(
+        source="driver.remaining_hours", read_only=True
+    )
+
+    class Meta:
+        model = Trip
+        fields = "__all__"
+
+
+class TripSerializer(serializers.ModelSerializer):
+    driver_name = serializers.CharField(
+        source="driver.user.get_full_name", read_only=True
+    )
+    remaining_hours = serializers.FloatField(
+        source="driver.remaining_hours", read_only=True
+    )
+
+    class Meta:
+        model = Trip
+        fields = "__all__"
+
+

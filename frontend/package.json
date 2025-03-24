@@ -15,12 +15,10 @@
     "@radix-ui/themes": "^3.2.1",
     "@react-google-maps/api": "^2.20.6",
     "axios": "^1.8.3",
-    "leaflet": "^1.9.4",
-    "next": "15.2.2",
-    "react": "^19.0.0-rc.1",
-    "react-dom": "^19.0.0-rc.1",
-    "react-google-autocomplete": "^2.7.4",
-    "react-leaflet": "^5.0.0-rc.2"
+    "next": "^15.2.3",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-google-autocomplete": "^2.7.4"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
@@ -30,7 +28,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "15.2.2",
+    "eslint-config-next": "^15.2.3",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

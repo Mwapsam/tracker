@@ -8,7 +8,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 load_dotenv(os.path.join(BASE_DIR, ".env"))
 
 SECRET_KEY = os.environ.get(
-    "SECRET_KEY", "django-insecure-9g=_&$2w+pfi1^g=5e-u7n0hn)ec(=*d(#d(gnc2t&w^weqk0f"
+    "SECRET_KEY", "75_omlzd+lvsiyxyv-k8^vy^l8!+^3&fz+vh*2x7+faflfy_gu"
 )
 
 ALLOWED_HOSTS = ["test.taskcentro.com", "3.10.116.8"]
@@ -132,3 +132,6 @@ LOGGING = {
         "level": "INFO",
     },
 }
+
+
+MAPS_API_KEY = os.environ.get("MAPS_API_KEY")
