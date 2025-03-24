@@ -7,6 +7,10 @@ class DutyStatusSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     location = serializers.SerializerMethodField()
 
+    location_lat = serializers.FloatField(write_only=True, required=True)
+    location_lon = serializers.FloatField(write_only=True, required=True)
+    location_name = serializers.CharField(write_only=True, required=True)
+
     class Meta:
         model = DutyStatus
         fields = [
@@ -16,6 +20,9 @@ class DutyStatusSerializer(serializers.ModelSerializer):
             "start_time",
             "end_time",
             "location",
+            "location_lat",
+            "location_lon",
+            "location_name",
         ]
 
     def get_location(self, obj):
@@ -82,6 +89,7 @@ class LogEntrySerializer(serializers.ModelSerializer):
 
 class LogEntryCreateSerializer(serializers.ModelSerializer):
     duty_statuses = DutyStatusSerializer(many=True, required=False)
+
     class Meta:
         model = LogEntry
         fields = [
