@@ -16,13 +16,11 @@ type DutyStatus = {
   };
 };
 
-type Props = {
-  params: {
-    id: string;
-  };
-};
-
-export default async function DutyStatusDetail({ params }: Props) {
+export default async function DutyStatusDetail({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { id } = await params;
   const res = await axiosInstance.get<DutyStatus>(`/api/duty-status/${id}`);
   const dutyStatus = await res.data;
@@ -70,16 +68,29 @@ export default async function DutyStatusDetail({ params }: Props) {
             {lat && lon ? (
               <MapWithRoute
                 waypoints={[
-                  { lat: 35.4655, lng: -97.5217, locationName: "Love's OKC" },
+                  {
+                    lat: 35.4655,
+                    lng: -97.5217,
+                    locationName: "Love's OKC",
+                    status: "",
+                    start_time: "",
+                    end_time: "",
+                  },
                   {
                     lat: 35.1875,
                     lng: -101.8346,
                     locationName: "Pilot Amarillo",
+                    status: "",
+                    start_time: "",
+                    end_time: "",
                   },
                   {
                     lat: 35.0844,
                     lng: -106.6504,
                     locationName: "TA Albuquerque",
+                    status: "",
+                    start_time: "",
+                    end_time: "",
                   },
                 ]}
               />

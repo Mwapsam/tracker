@@ -24,20 +24,22 @@ export interface DutyStatus {
 }
 
 export interface Driver {
-  user: {
+  id?: string
+  user?: {
     first_name: string;
     last_name: string;
     email?: string;
   };
-  license_number: string;
-  current_cycle_used: string;
-  last_34hr_restart: string;
-  carrier: Carrier;
+  license_number?: string;
+  current_cycle_used?: string;
+  last_34hr_restart?: string;
+  carrier?: Carrier;
 }
 
 export interface Vehicle {
-  truck_number: string;
-  trailer_number: string;
+  id?: string;
+  truck_number?: string;
+  trailer_number?: string;
 }
 
 export interface LogEntry {
@@ -52,4 +54,25 @@ export interface LogEntry {
   vehicle: Vehicle;
   total_miles: string;
   adverse_conditions: string;
+}
+
+export interface DutyStatusInput {
+  status: string;
+  start_time: string;
+  end_time: string;
+  location_name: string;
+  location_lat: string;
+  location_lon: string;
+}
+
+export interface LogEntryFormData {
+  date: string;
+  vehicle: Vehicle;
+  driver: Driver;
+  start_odometer: string;
+  end_odometer: string;
+  remarks: string;
+  signature: string;
+  adverse_conditions: boolean;
+  duty_statuses: DutyStatusInput[];
 }

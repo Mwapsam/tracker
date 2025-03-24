@@ -22,7 +22,7 @@ export default function LogEntries({ logEntries }: Props) {
   const router = useRouter();
 
   const [page, setPage] = useState(1);
-  const pageSize = 15; 
+  const pageSize = 15;
 
   const totalPages = Math.ceil(logEntries.length / pageSize);
 
@@ -54,7 +54,14 @@ export default function LogEntries({ logEntries }: Props) {
       >
         <Flex align="center" justify="between" mb="4">
           <Heading size="6">Trips Overview</Heading>
-          <Button variant="outline">Add New Trip</Button>
+          <Button
+            variant="outline"
+            onClick={() => {
+              router.push("/trips/create");
+            }}
+          >
+            Add New Trip
+          </Button>
         </Flex>
 
         <Card variant="surface">
