@@ -96,6 +96,12 @@ class LogEntryCreateSerializer(serializers.ModelSerializer):
             "driver",
         ]
         extra_kwargs = {
-            "duty_statuses": {"required": False},
             "id": {"read_only": True},
         }
+
+    def create(self, validated_data):
+        duty_statuses_data = validated_data.pop("duty_statuses", [])
+        log_entry = LogEntry.objects.create(**validated_data)
+        for ds_data in duty_statuses_data:
+            DutyStatus.objects.create(log_entry=log_entry, **ds_data)
+        return log_entry
