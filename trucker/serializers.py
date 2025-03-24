@@ -53,7 +53,7 @@ class DriverSerializer(serializers.ModelSerializer):
 class VehicleSerializer(serializers.ModelSerializer):
     class Meta:
         model = Vehicle
-        fields = ["truck_number", "trailer_number"]
+        fields = "__all__"
         extra_kwargs = {
             "truck_number": {"required": False},
             "trailer_number": {"required": False},
