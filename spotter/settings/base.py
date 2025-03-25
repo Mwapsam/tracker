@@ -112,6 +112,7 @@ SIMPLE_JWT = {
     "SIGNING_KEY": SECRET_KEY,
     "SLIDING_TOKEN_LIFETIME": timedelta(minutes=5),
     "SLIDING_TOKEN_REFRESH_LIFETIME": timedelta(days=1),
+    "TOKEN_OBTAIN_SERIALIZER": "settings.serializers.CustomTokenObtainPairSerializer",
 }
 
 CORS_ALLOWED_ORIGINS = ["http://localhost:3000"]

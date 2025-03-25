@@ -1,8 +1,11 @@
 from rest_framework import viewsets, serializers, views
 from rest_framework.exceptions import ValidationError
+from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+
+from spotter.settings.serializers import CustomTokenObtainPairSerializer
 from .models import DutyStatus, LogEntry, Driver, Trip, Vehicle, Carrier
 from .serializers import (
     DutyStatusSerializer,
@@ -16,6 +19,11 @@ from .serializers import (
 )
 from django.utils import timezone
 from datetime import timedelta
+
+
+class CustomTokenObtainPairView(TokenObtainPairView):
+    serializer_class = CustomTokenObtainPairSerializer
+
 
 class LogEntryViewSet(viewsets.ModelViewSet):
     serializer_class = LogEntrySerializer
@@ -109,7 +117,7 @@ class TripViewSet(viewsets.ModelViewSet):
 
             if (current_time - duty_window_start).total_seconds() / 3600 >= 14:
                 current_time = duty_window_start + timedelta(hours=14)
-                logs.append(self.create_off_duty(current_time, 10))  
+                logs.append(self.create_off_duty(current_time, 10))
                 duty_window_start = current_time + timedelta(hours=10)
                 current_time = duty_window_start
                 continue
