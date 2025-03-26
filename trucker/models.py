@@ -4,8 +4,10 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
+from datetime import timedelta
 
 from trucker.services.route_services import calculate_route_distance
+from trucker.services.stop_services import calculate_fuel_stops, calculate_rest_stops
 from trucker.validators import (
     check_34_hour_restart,
     validate_11_hour_driving_limit,
@@ -65,6 +67,7 @@ class Driver(models.Model):
 
 class Trip(models.Model):
     driver = models.ForeignKey("Driver", on_delete=models.CASCADE)
+    vehicle = models.ForeignKey("Vehicle", on_delete=models.CASCADE, null=True, blank=True)
     current_location = models.CharField(max_length=200)
     pickup_location = models.CharField(max_length=200)
     dropoff_location = models.CharField(max_length=200)
@@ -76,13 +79,19 @@ class Trip(models.Model):
     completed_at = models.DateTimeField(null=True, blank=True)
     completed = models.BooleanField(default=False)
 
+
     def save(self, *args, **kwargs):
         if not self.distance or not self.estimated_duration:
             try:
-                self.distance, duration_seconds = calculate_route_distance(
+                self.distance, duration = calculate_route_distance(
                     self.current_location, self.pickup_location, self.dropoff_location
                 )
-                self.estimated_duration = timezone.timedelta(seconds=duration_seconds)
+                if isinstance(duration, timezone.timedelta) or isinstance(
+                    duration, timedelta
+                ):
+                    self.estimated_duration = duration
+                else:
+                    self.estimated_duration = timezone.timedelta(seconds=duration)
             except Exception as e:
                 raise ValidationError(f"Route calculation failed: {str(e)}")
 
@@ -90,7 +99,6 @@ class Trip(models.Model):
         self.generate_stops()
 
     def generate_stops(self):
-        from .services import calculate_fuel_stops, calculate_rest_stops
 
         self.stops.all().delete()
 
@@ -115,8 +123,8 @@ class Stop(models.Model):
     trip = models.ForeignKey("Trip", on_delete=models.CASCADE, related_name="stops")
     stop_type = models.CharField(max_length=10, choices=TRUCK_STOP_TYPES)
     location_name = models.CharField(max_length=255)
-    location_lat = models.FloatField()
-    location_lon = models.FloatField()
+    location_lat = models.FloatField(null=True, blank=True)
+    location_lon = models.FloatField(null=True, blank=True)
     scheduled_time = models.DateTimeField()
     actual_time = models.DateTimeField(null=True, blank=True)
     duration = models.DurationField(default=timezone.timedelta(minutes=30))
