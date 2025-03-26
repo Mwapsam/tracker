@@ -7,6 +7,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 
 from spotter.settings.serializers import CustomTokenObtainPairSerializer
+from trucker.exceptions import TripValidationError
+from trucker.permissions import IsDriverOwner
 from .models import DutyStatus, LogEntry, Driver, Trip, Vehicle, Carrier
 from .serializers import (
     DutyStatusSerializer,
@@ -19,6 +21,7 @@ from .serializers import (
     CarrierSerializer,
 )
 from django.utils import timezone
+from django.db import transaction
 from datetime import timedelta
 from .services.hos_services import generate_hos_logs
 
@@ -193,23 +196,45 @@ class SingleDriverAPIView(views.APIView):
 
 class TripViewSet(viewsets.ModelViewSet):
     serializer_class = TripSerializer
-    permission_classes = [IsAuthenticated]
-    queryset = Trip.objects.select_related("driver__user").prefetch_related("stops")
+    permission_classes = [IsAuthenticated, IsDriverOwner]
+    queryset = (
+        Trip.objects.select_related("driver__user")
+        .prefetch_related("stops")
+        .order_by("-start_time")
+    )
 
     def get_queryset(self):
         return self.queryset.filter(driver__user=self.request.user)
 
+    @transaction.atomic
+    def perform_create(self, serializer):
+        trip = serializer.save()
+        trip.log_entry = LogEntry.objects.create(driver=trip.driver)
+        trip.save()
+
     @action(detail=True, methods=["post"])
     def start(self, request, pk=None):
+        """Mark trip as started"""
         trip = self.get_object()
+
         if trip.completed:
             return Response(
-                {"error": "Trip already completed"}, status=status.HTTP_400_BAD_REQUEST
+                {"error": "Cannot start a completed trip"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if trip.start_time > timezone.now():
+            return Response(
+                {"error": "Trip cannot be started before scheduled time"},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         trip.start_time = timezone.now()
         trip.save()
-        return Response({"status": "trip started"})
+        return Response(
+            {"status": "trip started", "start_time": trip.start_time},
+            status=status.HTTP_200_OK,
+        )
 
     @action(detail=True, methods=["post"])
     def complete(self, request, pk=None):
@@ -222,7 +247,14 @@ class TripViewSet(viewsets.ModelViewSet):
         trip.completed_at = timezone.now()
         trip.completed = True
         trip.save()
-        return Response({"status": "trip completed"})
+
+        trip.driver.current_location = trip.dropoff_location
+        trip.driver.save()
+
+        return Response(
+            {"status": "trip completed", "completed_at": trip.completed_at},
+            status=status.HTTP_200_OK,
+        )
 
     @action(detail=True, methods=["get"])
     def logs(self, request, pk=None):
@@ -230,17 +262,48 @@ class TripViewSet(viewsets.ModelViewSet):
             trip = self.get_object()
             logs = generate_hos_logs(trip)
             return Response(logs, status=status.HTTP_200_OK)
-        except Exception as e:
+        except TripValidationError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response(
+                {"error": "Failed to generate logs"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
     @action(detail=True, methods=["get"])
     def route_details(self, request, pk=None):
         trip = self.get_object()
+        serializer = self.get_serializer(trip)
         return Response(
             {
-                "distance": trip.distance,
-                "estimated_duration": str(trip.estimated_duration),
-                "average_speed": trip.average_speed,
-                "stops": StopSerializer(trip.stops.all(), many=True).data,
+                **serializer.data,
+                "stops": StopSerializer(
+                    trip.stops.order_by("scheduled_time"), many=True
+                ).data,
             }
+        )
+
+    @action(detail=False, methods=["get"])
+    def active(self, request):
+        active_trips = self.get_queryset().filter(
+            start_time__lte=timezone.now(), completed=False
+        )
+        serializer = self.get_serializer(active_trips, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=["post"])
+    def update_location(self, request, pk=None):
+        trip = self.get_object()
+        new_location = request.data.get("current_location")
+
+        if not new_location:
+            return Response(
+                {"error": "Location data required"}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        trip.current_location = new_location
+        trip.save()
+        return Response(
+            {"status": "location updated", "current_location": new_location},
+            status=status.HTTP_200_OK,
         )
