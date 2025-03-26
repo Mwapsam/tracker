@@ -180,5 +180,10 @@ class SingleDriverAPIView(views.APIView):
         driver = Driver.objects.filter(user=request.user).first()
         if not driver:
             return Response({"error": "No driver found for this user"}, status=404)
-        data = DriverSerializer(driver).data
+
+        log_entry = LogEntry.objects.filter(driver=driver).first()
+        if not log_entry:
+            return Response({"error": "No log entry found for this driver"}, status=404)
+
+        data = LogEntrySerializer(log_entry).data
         return Response(data, status=200)
