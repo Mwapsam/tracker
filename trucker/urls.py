@@ -9,9 +9,9 @@ from .views import (
     DriverViewSet,
     VehicleViewSet,
     CarrierViewSet,
+    SingleDriverAPIView,
 )
 from rest_framework_simplejwt.views import (
-    TokenObtainPairView,
     TokenRefreshView,
 )
 
@@ -33,5 +33,10 @@ urlpatterns = [
         "api/latest-stations/<int:driver_id>/",
         LatestStationsViewSet.as_view(),
         name="latest-stations",
+    ),
+    path(
+        "api/single-driver/",
+        SingleDriverAPIView.as_view(),
+        name="single-driver",
     ),
 ]

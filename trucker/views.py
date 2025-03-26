@@ -171,3 +171,14 @@ class TripViewSet(viewsets.ModelViewSet):
             "end_time": start_time + timedelta(hours=hours),
             "location_name": "Mandatory rest",
         }
+
+
+class SingleDriverAPIView(views.APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        driver = Driver.objects.filter(user=request.user).first()
+        if not driver:
+            return Response({"error": "No driver found for this user"}, status=404)
+        data = DriverSerializer(driver).data
+        return Response(data, status=200)
