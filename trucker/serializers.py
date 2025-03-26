@@ -176,25 +176,21 @@ class TripSerializer(serializers.ModelSerializer):
         now = timezone.now()
         if obj.completed:
             return "completed"
-        elif obj.start_time > now:
-            return "scheduled"
-        else:
-            return "in_progress"
+        return "scheduled" if obj.start_time > now else "in_progress"
 
     def validate(self, data):
         driver = data.get("driver", getattr(self.instance, "driver", None))
-
         if not driver:
             raise serializers.ValidationError("Driver is required")
 
-        if self.context["request"].user != driver.user:
+        request = self.context.get("request")
+        if request and request.user != driver.user:
             raise serializers.ValidationError("You can only manage your own trips")
 
-        if "start_time" in data and data["start_time"] < timezone.now():
+        if data.get("start_time") and data["start_time"] < timezone.now():
             raise serializers.ValidationError("Start time must be in the future")
 
         return data
 
     def create(self, validated_data):
-        trip = Trip.objects.create(**validated_data)
-        return trip
+        return Trip.objects.create(**validated_data)

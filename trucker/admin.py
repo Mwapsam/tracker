@@ -55,7 +55,6 @@ class TripAdmin(admin.ModelAdmin):
         "average_speed",
         "start_time",
         "completed_at",
-        "start_time",
         "completed",
     )
 

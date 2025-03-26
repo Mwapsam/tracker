@@ -204,7 +204,10 @@ class TripViewSet(viewsets.ModelViewSet):
     )
 
     def get_queryset(self):
-        return self.queryset.filter(driver__user=self.request.user)
+        driver = Driver.objects.filter(user=self.request.user).first()
+        if driver is None:
+            return Trip.objects.none()
+        return Trip.objects.filter(driver=driver)
 
     @transaction.atomic
     def perform_create(self, serializer):
