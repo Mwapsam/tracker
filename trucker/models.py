@@ -1,4 +1,3 @@
-from math import isclose
 from django.db import models
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
@@ -69,20 +68,59 @@ class Trip(models.Model):
     current_location = models.CharField(max_length=200)
     pickup_location = models.CharField(max_length=200)
     dropoff_location = models.CharField(max_length=200)
-    distance = models.FloatField(null=True, blank=True)
+    distance = models.FloatField(null=True, blank=True)  
     estimated_duration = models.DurationField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     start_time = models.DateTimeField(default=timezone.now)
+    average_speed = models.FloatField(default=50) 
 
     def save(self, *args, **kwargs):
-        if not self.distance:
+        if not self.distance or not self.estimated_duration:
             try:
-                self.distance, self.estimated_duration = calculate_route_distance(
+                self.distance, duration_seconds = calculate_route_distance(
                     self.current_location, self.pickup_location, self.dropoff_location
                 )
+                self.estimated_duration = timezone.timedelta(seconds=duration_seconds)
             except Exception as e:
-                raise ValidationError(f"Failed to calculate route distance: {e}")
+                raise ValidationError(f"Route calculation failed: {str(e)}")
+
         super().save(*args, **kwargs)
+        self.generate_stops()
+
+    def generate_stops(self):
+        from .services import calculate_fuel_stops, calculate_rest_stops
+
+        self.stops.all().delete()
+
+        fuel_stops = calculate_fuel_stops(self.distance, self.start_time)
+        for stop in fuel_stops:
+            Stop.objects.create(trip=self, **stop)
+
+        rest_stops = calculate_rest_stops(
+            self.estimated_duration.total_seconds() / 3600, self.start_time
+        )
+        for stop in rest_stops:
+            Stop.objects.create(trip=self, **stop)
+
+
+class Stop(models.Model):
+    TRUCK_STOP_TYPES = [
+        ("FUEL", "Fuel Stop"),
+        ("REST", "Rest Break"),
+        ("LOAD", "Loading/Unloading"),
+    ]
+
+    trip = models.ForeignKey("Trip", on_delete=models.CASCADE, related_name="stops")
+    stop_type = models.CharField(max_length=10, choices=TRUCK_STOP_TYPES)
+    location_name = models.CharField(max_length=255)
+    location_lat = models.FloatField()
+    location_lon = models.FloatField()
+    scheduled_time = models.DateTimeField()
+    actual_time = models.DateTimeField(null=True, blank=True)
+    duration = models.DurationField(default=timezone.timedelta(minutes=30))
+
+    def __str__(self):
+        return f"{self.stop_type} Stop at {self.location_name}"
 
 
 class Vehicle(models.Model):
@@ -153,7 +191,17 @@ class DutyStatus(models.Model):
     def duration(self):
         return (self.end_time - self.start_time).total_seconds() / 3600
 
+
     def clean(self):
+        if self.status in ["Pickup", "Dropoff"]:
+            if (self.end_time - self.start_time).seconds != 3600:
+                raise ValidationError(f"{self.status} must be exactly 1 hour long.")
+
+        if self.status == "SB":
+            min_duration = 6 * 3600  
+            if (self.end_time - self.start_time).total_seconds() < min_duration:
+                raise ValidationError("Sleeper berth must be at least 6 hours long.")
+
         statuses = list(self.__class__.objects.filter(log_entry=self.log_entry))
         if self.pk:
             statuses = [s for s in statuses if s.pk != self.pk]

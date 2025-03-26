@@ -1,3 +1,4 @@
+from django.db import IntegrityError
 import pytest
 from django.core.exceptions import ValidationError
 from django.contrib.auth.models import User
@@ -13,7 +14,6 @@ from trucker.models import (
 )
 
 
-# Pytest Fixtures
 @pytest.fixture
 def user(db):
     return User.objects.create_user(
@@ -56,7 +56,7 @@ def vehicle(db, carrier):
 
 @pytest.fixture
 def log_entry(db, driver, vehicle):
-    now = timezone.now()
+    now = timezone.localtime()
     return LogEntry.objects.create(
         driver=driver,
         vehicle=vehicle,
@@ -82,7 +82,14 @@ def duty_status(db, log_entry):
     )
 
 
-# Pytest Tests
+@pytest.fixture
+def cycle_calculation(db, driver):
+    return CycleCalculation.objects.create(
+        driver=driver,
+        calculation_date=timezone.now().date(),
+        total_hours=50.0,
+        cycle_type="70-hour",
+    )
 
 
 def test_carrier_str(carrier):
@@ -303,3 +310,83 @@ def test_valid_break_after_driving(db, log_entry):
     )
     status2.full_clean() 
     status2.save()
+
+
+def test_cycle_calculation_unique_constraint(db, driver):
+    date = timezone.now().date()
+    CycleCalculation.objects.create(
+        driver=driver, calculation_date=date, total_hours=50.0, cycle_type="70-hour"
+    )
+    with pytest.raises(IntegrityError):  
+        CycleCalculation.objects.create(
+            driver=driver, calculation_date=date, total_hours=60.0, cycle_type="70-hour"
+        )
+
+
+def test_valid_sleeper_berth_split(db, log_entry):
+    now = timezone.now()
+    sb1 = DutyStatus(
+        log_entry=log_entry,
+        status="SB",
+        start_time=now,
+        end_time=now + timedelta(hours=7),
+        location_name="Berth 1",
+    )
+    sb2 = DutyStatus(
+        log_entry=log_entry,
+        status="SB",
+        start_time=now + timedelta(hours=10),
+        end_time=now + timedelta(hours=17),
+        location_name="Berth 2",
+    )
+    sb1.full_clean()
+    sb1.save()
+    sb2.full_clean() 
+    sb2.save()
+
+
+def test_invalid_sleeper_berth_split(db, log_entry):
+    now = timezone.localtime()  
+    sb1 = DutyStatus(
+        log_entry=log_entry,
+        status="SB",
+        start_time=now,
+        end_time=now + timedelta(hours=3),
+        location_name="Invalid Berth",
+    )
+    with pytest.raises(ValidationError):
+        sb1.full_clean() 
+
+
+def test_34_hour_restart_success(driver, log_entry):
+    start = timezone.localtime() - timedelta(hours=35)
+    DutyStatus.objects.create(
+        log_entry=log_entry,
+        status="OFF",
+        start_time=start,
+        end_time=start + timedelta(hours=34),
+        location_name="Restart window",
+    )
+    assert driver.check_34hr_restart(timezone.localtime())
+
+
+def test_8_day_cycle_reset(driver):
+    old_date = timezone.now() - timedelta(days=9)
+    CycleCalculation.objects.create(
+        driver=driver, calculation_date=old_date, total_hours=65.0, cycle_type="70-hour"
+    )
+
+    assert driver.current_cycle_used == 0  
+
+
+def test_cross_timezone_validation(db, log_entry):
+    tz_aware_time = timezone.make_aware(timezone.datetime(2023, 1, 1, 23, 30))
+    status = DutyStatus(
+        log_entry=log_entry,
+        status="D",
+        start_time=tz_aware_time,
+        end_time=tz_aware_time + timedelta(hours=2),
+        location_name="Cross-day drive",
+    )
+    status.full_clean()  
+    status.save()

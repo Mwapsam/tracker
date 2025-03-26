@@ -46,10 +46,6 @@ def validate_30_minute_break(statuses):
 
 
 def check_34_hour_restart(current_status):
-    """
-    If the current status is an OFF or SB and the duration is at least 34 hours,
-    then if no non-break status overlaps in the last 34 hours, update the driver's restart.
-    """
     if current_status.status in ["OFF", "SB"] and current_status.duration >= 34:
         thirty_four_hours_ago = current_status.end_time - timezone.timedelta(hours=34)
         overlapping_statuses = current_status.__class__.objects.filter(
@@ -63,3 +59,8 @@ def check_34_hour_restart(current_status):
             driver.save()
 
 
+def validate_sleeper_berth(statuses):
+    sb_periods = [s for s in statuses if s.status == "SB"]
+
+    if any((s.end_time - s.start_time).total_seconds() < 7 * 3600 for s in sb_periods):
+        raise ValidationError("Sleeper berth periods must be at least 7 hours")
