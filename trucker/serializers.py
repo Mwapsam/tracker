@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import Driver, Carrier, Trip, Vehicle, LogEntry, DutyStatus
+from django.utils import timezone
+from .models import Driver, Carrier, Stop, Trip, Vehicle, LogEntry, DutyStatus
 
 
 class DutyStatusSerializer(serializers.ModelSerializer):
@@ -115,7 +116,26 @@ class LogEntryCreateSerializer(serializers.ModelSerializer):
         return log_entry
 
 
+class StopSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Stop
+        fields = [
+            "id",
+            "trip",
+            "stop_type",
+            "location_name",
+            "location_lat",
+            "location_lon",
+            "scheduled_time",
+            "actual_time",
+            "duration",
+            "completed",
+        ]
+
+
 class TripSerializer(serializers.ModelSerializer):
+    stops = StopSerializer(many=True, read_only=True)
+    status = serializers.SerializerMethodField()
     driver_name = serializers.CharField(
         source="driver.user.get_full_name", read_only=True
     )
@@ -125,19 +145,56 @@ class TripSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Trip
-        fields = "__all__"
+        fields = [
+            "id",
+            "driver",
+            "driver_name",
+            "current_location",
+            "pickup_location",
+            "dropoff_location",
+            "distance",
+            "estimated_duration",
+            "start_time",
+            "completed_at",
+            "completed",
+            "average_speed",
+            "created_at",
+            "stops",
+            "remaining_hours",
+            "status",
+        ]
+        read_only_fields = [
+            "distance",
+            "estimated_duration",
+            "created_at",
+            "stops",
+            "remaining_hours",
+            "status",
+        ]
 
+    def get_status(self, obj):
+        now = timezone.now()
+        if obj.completed:
+            return "completed"
+        elif obj.start_time > now:
+            return "scheduled"
+        else:
+            return "in_progress"
 
-class TripSerializer(serializers.ModelSerializer):
-    driver_name = serializers.CharField(
-        source="driver.user.get_full_name", read_only=True
-    )
-    remaining_hours = serializers.FloatField(
-        source="driver.remaining_hours", read_only=True
-    )
+    def validate(self, data):
+        driver = data.get("driver", getattr(self.instance, "driver", None))
 
-    class Meta:
-        model = Trip
-        fields = "__all__"
+        if not driver:
+            raise serializers.ValidationError("Driver is required")
 
+        if self.context["request"].user != driver.user:
+            raise serializers.ValidationError("You can only manage your own trips")
 
+        if "start_time" in data and data["start_time"] < timezone.now():
+            raise serializers.ValidationError("Start time must be in the future")
+
+        return data
+
+    def create(self, validated_data):
+        trip = Trip.objects.create(**validated_data)
+        return trip

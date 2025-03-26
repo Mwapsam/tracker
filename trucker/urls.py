@@ -7,6 +7,7 @@ from .views import (
     LatestStationsViewSet,
     LogEntryViewSet,
     DriverViewSet,
+    TripViewSet,
     VehicleViewSet,
     CarrierViewSet,
     SingleDriverAPIView,
@@ -22,6 +23,7 @@ router.register(r"drivers", DriverViewSet)
 router.register(r"vehicles", VehicleViewSet)
 router.register(r"carriers", CarrierViewSet)
 router.register(r"duty-status", DutyStatusViewSet)
+router.register(r"trips", TripViewSet)
 
 urlpatterns = [
     path("api/", include(router.urls)),

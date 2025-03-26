@@ -73,6 +73,8 @@ class Trip(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     start_time = models.DateTimeField(default=timezone.now)
     average_speed = models.FloatField(default=50) 
+    completed_at = models.DateTimeField(null=True, blank=True)
+    completed = models.BooleanField(default=False)
 
     def save(self, *args, **kwargs):
         if not self.distance or not self.estimated_duration:

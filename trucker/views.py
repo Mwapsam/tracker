@@ -1,9 +1,10 @@
-from rest_framework import viewsets, serializers, views
+from rest_framework import viewsets, views
 from rest_framework.exceptions import ValidationError
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from rest_framework import status
 
 from spotter.settings.serializers import CustomTokenObtainPairSerializer
 from .models import DutyStatus, LogEntry, Driver, Trip, Vehicle, Carrier
@@ -19,6 +20,7 @@ from .serializers import (
 )
 from django.utils import timezone
 from datetime import timedelta
+from .services.hos_services import generate_hos_logs
 
 
 class CustomTokenObtainPairView(TokenObtainPairView):
@@ -187,3 +189,49 @@ class SingleDriverAPIView(views.APIView):
 
         data = LogEntrySerializer(log_entry).data
         return Response(data, status=200)
+
+
+class TripViewSet(viewsets.ModelViewSet):
+    serializer_class = TripSerializer
+    permission_classes = [IsAuthenticated]
+    queryset = Trip.objects.select_related("driver__user").prefetch_related("stops")
+
+    def get_queryset(self):
+        return self.queryset.filter(driver__user=self.request.user)
+
+    @action(detail=True, methods=["post"])
+    def start(self, request, pk=None):
+        trip = self.get_object()
+        if trip.completed:
+            return Response(
+                {"error": "Trip already completed"}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        trip.start_time = timezone.now()
+        trip.save()
+        return Response({"status": "trip started"})
+
+    @action(detail=True, methods=["post"])
+    def complete(self, request, pk=None):
+        trip = self.get_object()
+        if trip.completed:
+            return Response(
+                {"error": "Trip already completed"}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        trip.completed_at = timezone.now()
+        trip.completed = True
+        trip.save()
+        return Response({"status": "trip completed"})
+
+    @action(detail=True, methods=["get"])
+    def route_details(self, request, pk=None):
+        trip = self.get_object()
+        return Response(
+            {
+                "distance": trip.distance,
+                "estimated_duration": str(trip.estimated_duration),
+                "average_speed": trip.average_speed,
+                "stops": StopSerializer(trip.stops.all(), many=True).data,
+            }
+        )
