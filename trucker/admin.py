@@ -2,7 +2,7 @@ from django.contrib import admin
 
 # admin.py
 from django.contrib import admin
-from .models import Carrier, Driver, Vehicle, LogEntry, DutyStatus
+from .models import Carrier, Driver, Vehicle, LogEntry, DutyStatus, Trip, Stop
 
 
 @admin.register(Carrier)
@@ -40,3 +40,18 @@ class LogEntryAdmin(admin.ModelAdmin):
 class DutyStatusAdmin(admin.ModelAdmin):
     list_display = ("log_entry", "status", "start_time", "end_time", "location_name")
     list_filter = ("status", "location_name")
+
+
+
+@admin.register(Trip)
+class TripAdmin(admin.ModelAdmin):
+    list_display = ("driver", "vehicle", "start_time", "end_time", "total_miles")
+    list_filter = ("driver", "vehicle")
+
+
+@admin.register(Stop)
+class StopAdmin(admin.ModelAdmin):
+    list_display = ("trip", "location_name", "arrival_time", "departure_time")
+    list_filter = ("trip", "location_name")
+
+    
