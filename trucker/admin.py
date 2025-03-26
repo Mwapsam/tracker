@@ -47,36 +47,28 @@ class TripAdmin(admin.ModelAdmin):
     list_display = (
         "driver",
         "vehicle",
+        "current_location",
+        "pickup_location",
+        "dropoff_location",
+        "distance",
+        "estimated_duration",
+        "average_speed",
         "start_time",
-        "get_end_time",
-        "get_total_miles",
+        "completed_at",
+        "start_time",
+        "completed",
     )
-
-    def get_end_time(self, obj):
-        return obj.end_time if obj.end_time else "N/A"
-
-    get_end_time.admin_order_field = "end_time"
-    get_end_time.short_description = "End Time"
-
-    def get_total_miles(self, obj):
-        return obj.total_miles if obj.total_miles else "N/A"
-
-    get_total_miles.admin_order_field = "total_miles"
-    get_total_miles.short_description = "Total Miles"
 
 
 @admin.register(Stop)
 class StopAdmin(admin.ModelAdmin):
-    list_display = ("trip", "location_name", "get_arrival_time", "get_departure_time")
-
-    def get_arrival_time(self, obj):
-        return obj.arrival_time if obj.arrival_time else "N/A"
-
-    get_arrival_time.admin_order_field = "arrival_time"
-    get_arrival_time.short_description = "Arrival Time"
-
-    def get_departure_time(self, obj):
-        return obj.departure_time if obj.departure_time else "N/A"
-
-    get_departure_time.admin_order_field = "departure_time"
-    get_departure_time.short_description = "Departure Time"
+    list_display = (
+        "trip",
+        "location_name",
+        "stop_type",
+        "location_lat",
+        "location_lon",
+        "scheduled_time",
+        "actual_time",
+        "duration",
+    )
