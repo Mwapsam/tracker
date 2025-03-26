@@ -42,16 +42,41 @@ class DutyStatusAdmin(admin.ModelAdmin):
     list_filter = ("status", "location_name")
 
 
-
 @admin.register(Trip)
 class TripAdmin(admin.ModelAdmin):
-    list_display = ("driver", "vehicle", "start_time", "end_time", "total_miles")
-    list_filter = ("driver", "vehicle")
+    list_display = (
+        "driver",
+        "vehicle",
+        "start_time",
+        "get_end_time",
+        "get_total_miles",
+    )
+
+    def get_end_time(self, obj):
+        return obj.end_time if obj.end_time else "N/A"
+
+    get_end_time.admin_order_field = "end_time"
+    get_end_time.short_description = "End Time"
+
+    def get_total_miles(self, obj):
+        return obj.total_miles if obj.total_miles else "N/A"
+
+    get_total_miles.admin_order_field = "total_miles"
+    get_total_miles.short_description = "Total Miles"
 
 
 @admin.register(Stop)
 class StopAdmin(admin.ModelAdmin):
-    list_display = ("trip", "location_name", "arrival_time", "departure_time")
-    list_filter = ("trip", "location_name")
+    list_display = ("trip", "location_name", "get_arrival_time", "get_departure_time")
 
-    
+    def get_arrival_time(self, obj):
+        return obj.arrival_time if obj.arrival_time else "N/A"
+
+    get_arrival_time.admin_order_field = "arrival_time"
+    get_arrival_time.short_description = "Arrival Time"
+
+    def get_departure_time(self, obj):
+        return obj.departure_time if obj.departure_time else "N/A"
+
+    get_departure_time.admin_order_field = "departure_time"
+    get_departure_time.short_description = "Departure Time"
