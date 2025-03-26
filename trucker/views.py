@@ -225,6 +225,15 @@ class TripViewSet(viewsets.ModelViewSet):
         return Response({"status": "trip completed"})
 
     @action(detail=True, methods=["get"])
+    def logs(self, request, pk=None):
+        try:
+            trip = self.get_object()
+            logs = generate_hos_logs(trip)
+            return Response(logs, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=["get"])
     def route_details(self, request, pk=None):
         trip = self.get_object()
         return Response(
