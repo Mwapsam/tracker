@@ -129,7 +129,6 @@ class StopSerializer(serializers.ModelSerializer):
             "scheduled_time",
             "actual_time",
             "duration",
-            "completed",
         ]
 
 
@@ -169,7 +168,6 @@ class TripSerializer(serializers.ModelSerializer):
             "created_at",
             "stops",
             "remaining_hours",
-            "status",
         ]
 
     def get_status(self, obj):
