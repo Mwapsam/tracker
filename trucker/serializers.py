@@ -170,12 +170,6 @@ class TripSerializer(serializers.ModelSerializer):
             "remaining_hours",
         ]
 
-    def get_status(self, obj):
-        now = timezone.now()
-        if obj.completed:
-            return "completed"
-        return "scheduled" if obj.start_time > now else "in_progress"
-
     def validate(self, data):
         driver = data.get("driver", getattr(self.instance, "driver", None))
         if not driver:
