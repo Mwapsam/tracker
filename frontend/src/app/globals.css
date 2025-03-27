@@ -1,4 +1,4 @@
-/* Reset CSS */
+Reset CSS
 * {
   box-sizing: border-box;
   margin: 0;
@@ -74,3 +74,4 @@ section {
     padding: 15px;
   }
 }
+

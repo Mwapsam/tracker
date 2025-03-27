@@ -1,61 +1,54 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const adminRoutes = ["/admin", "/admin/dashboard", "/admin/settings"];
-const driverRoutes = ["/driver", "/driver/profile", "/driver/trips"];
-const protectedRoutes = [
-  "/",
-  "/logs",
-  "/logs/[id]",
-  "/trips/create",
-  "/trips/[id]",
-  "/trips",
-  "/trips/[id]/edit",
-];
-const publicRoutes = ["/login", "/password"];
-
-function getUserRole(accessToken: string) {
+function getUserRole(accessToken: string): string | null {
   try {
     const [, payload] = accessToken.split(".");
     const decoded = JSON.parse(atob(payload));
-    console.log("DECODED: ", decoded);
-    
-    return decoded.is_staff ? "admin" : "driver";
+    return decoded.role;
   } catch {
     return null;
   }
 }
+
+const publicRoutes = ["/login", "/password"];
+const adminRoutes = [
+  "/admin",
+  "/admin/logs",
+  "/admin/trips",
+  "/admin/trips/create",
+  "/admin/trips/[id]/edit",
+];
+const driverRoutes = ["/driver", "/driver/dashboard", "/driver/trips"];
 
 export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
   const accessToken = request.cookies.get("accessToken")?.value;
   const userRole = accessToken ? getUserRole(accessToken) : null;
 
-  if (publicRoutes.includes(path)) {
-    if (accessToken) {
-      return NextResponse.redirect(new URL("/", request.nextUrl));
-    }
-    return NextResponse.next();
+  const isPublicRoute = publicRoutes.includes(path);
+  const isAdminRoute = adminRoutes.some((route) => path.startsWith(route));
+  const isDriverRoute = driverRoutes.some((route) => path.startsWith(route));
+
+  if (!accessToken && !isPublicRoute && (isAdminRoute || isDriverRoute)) {
+    return NextResponse.redirect(new URL("/login", request.nextUrl));
   }
 
-  if (
-    protectedRoutes.includes(path) ||
-    adminRoutes.includes(path) ||
-    driverRoutes.includes(path)
-  ) {
-    if (!accessToken || accessToken.trim() === "") {
-      const response = NextResponse.redirect(
-        new URL("/login", request.nextUrl)
-      );
-      response.cookies.set("accessToken", "", { path: "/", maxAge: 0 });
-      return response;
+  if (isPublicRoute && accessToken) {
+    if (userRole === "admin") {
+      return NextResponse.redirect(new URL("/admin", request.nextUrl));
     }
-    if (adminRoutes.includes(path) && userRole !== "admin") {
-      return NextResponse.redirect(new URL("/", request.nextUrl));
+    if (userRole === "driver") {
+      return NextResponse.redirect(new URL("/driver", request.nextUrl));
     }
-    if (driverRoutes.includes(path) && userRole !== "driver") {
-      return NextResponse.redirect(new URL("/", request.nextUrl));
-    }
+  }
+
+  if (isAdminRoute && userRole !== "admin") {
+    return NextResponse.redirect(new URL("/driver/dashboard", request.nextUrl));
+  }
+
+  if (isDriverRoute && userRole !== "driver") {
+    return NextResponse.redirect(new URL("/admin", request.nextUrl));
   }
 
   return NextResponse.next();

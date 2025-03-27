@@ -134,7 +134,6 @@ class StopSerializer(serializers.ModelSerializer):
 
 class TripSerializer(serializers.ModelSerializer):
     stops = StopSerializer(many=True, read_only=True)
-    status = serializers.SerializerMethodField()
     driver_name = serializers.CharField(
         source="driver.user.get_full_name", read_only=True
     )

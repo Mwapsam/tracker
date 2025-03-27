@@ -2,7 +2,6 @@
 
 import { cookies } from "next/headers";
 import axios from "axios";
-import { BASE_URL } from ".";
 
 export const getToken = async (type: string) => {
   const cookieStore = cookies();
@@ -21,12 +20,17 @@ export const storeToken = async (token: string, type: "access" | "refresh") => {
 
 const removeTokens = async () => {
   const cookieStore = cookies();
-  (await cookieStore).delete("accessToken");
-  (await cookieStore).delete("refreshToken");
+  const checkTokenCookies = (await cookieStore).has("accessToken") || 
+    (await cookieStore).has("refreshToken");
+
+  if (checkTokenCookies) {
+    (await cookieStore).delete("accessToken");
+    (await cookieStore).delete("refreshToken");
+  }
 };
 
 export const axiosInstance = axios.create({
-  baseURL: BASE_URL,
+  baseURL: process.env.DJANGO_API_URL,
   headers: { "Content-Type": "application/json" },
 });
 

@@ -23,6 +23,15 @@ export interface DutyStatus {
   };
 }
 
+export interface User {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  is_superuser: boolean;
+  is_staff: boolean;
+}
+
 export interface Driver {
   id?: string
   user?: {
@@ -75,4 +84,34 @@ export interface LogEntryFormData {
   signature: string;
   adverse_conditions: boolean;
   duty_statuses: DutyStatusInput[];
+}
+
+export interface Trip {
+  id: string;
+  driver: Driver;
+  vehicle: Vehicle;
+  start_time: string;
+  current_location: string;
+  pickup_location: string;
+  dropoff_location: string;
+  distance: number;
+  estimated_duration: string;
+  average_speed: number;
+  completed_at?: string;
+  completed: boolean;
+  stops: Stop[];
+  remaining_hours: number;
+}
+
+export interface Stop {
+  id: string;
+  trip: string; 
+  stop_type: string;
+  location_name: string;
+  location_lat: number;
+  location_lon: number;
+  scheduled_time: string;
+  actual_time?: string; 
+  duration: number;
+  completed: boolean;
 }
