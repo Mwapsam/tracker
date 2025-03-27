@@ -4,7 +4,7 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
-from datetime import timedelta
+from django.conf import settings
 
 from trucker.services.route_services import calculate_route_distance
 from trucker.services.stop_services import calculate_fuel_stops, calculate_rest_stops
@@ -67,15 +67,17 @@ class Driver(models.Model):
 
 class Trip(models.Model):
     driver = models.ForeignKey("Driver", on_delete=models.CASCADE)
-    vehicle = models.ForeignKey("Vehicle", on_delete=models.CASCADE, null=True, blank=True)
+    vehicle = models.ForeignKey(
+        "Vehicle", on_delete=models.CASCADE, null=True, blank=True
+    )
     current_location = models.CharField(max_length=200)
     pickup_location = models.CharField(max_length=200)
     dropoff_location = models.CharField(max_length=200)
-    distance = models.FloatField(null=True, blank=True)  
+    distance = models.FloatField(null=True, blank=True)
     estimated_duration = models.DurationField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     start_time = models.DateTimeField(default=timezone.now)
-    average_speed = models.FloatField(default=50) 
+    average_speed = models.FloatField(default=50)
     completed_at = models.DateTimeField(null=True, blank=True)
     completed = models.BooleanField(default=False)
 
@@ -91,8 +93,7 @@ class Trip(models.Model):
     def save(self, *args, **kwargs):
         if not self.completed and self.pk is None:
             existing_active = Trip.objects.filter(
-                driver=self.driver,
-                completed=False
+                driver=self.driver, completed=False
             ).exists()
 
             if existing_active:
@@ -103,12 +104,7 @@ class Trip(models.Model):
                 self.distance, duration = calculate_route_distance(
                     self.current_location, self.pickup_location, self.dropoff_location
                 )
-                if isinstance(duration, timezone.timedelta) or isinstance(
-                    duration, timedelta
-                ):
-                    self.estimated_duration = duration
-                else:
-                    self.estimated_duration = timezone.timedelta(seconds=duration)
+                # set estimated_duration
             except Exception as e:
                 raise ValidationError(f"Route calculation failed: {str(e)}")
 
@@ -125,7 +121,13 @@ class Trip(models.Model):
 
         self.stops.all().delete()
 
-        fuel_stops = calculate_fuel_stops(self.distance, self.start_time)
+        fuel_stops = calculate_fuel_stops(
+            self.distance,
+            self.start_time,
+            origin=self.pickup_location,
+            destination=self.dropoff_location,
+            api_key=settings.MAPS_API_KEY,
+        )
         for stop in fuel_stops:
             Stop.objects.create(trip=self, **stop)
 
@@ -224,14 +226,13 @@ class DutyStatus(models.Model):
     def duration(self):
         return (self.end_time - self.start_time).total_seconds() / 3600
 
-
     def clean(self):
         if self.status in ["Pickup", "Dropoff"]:
             if (self.end_time - self.start_time).seconds != 3600:
                 raise ValidationError(f"{self.status} must be exactly 1 hour long.")
 
         if self.status == "SB":
-            min_duration = 6 * 3600  
+            min_duration = 6 * 3600
             if (self.end_time - self.start_time).total_seconds() < min_duration:
                 raise ValidationError("Sleeper berth must be at least 6 hours long.")
 
