@@ -160,7 +160,7 @@ class TripSerializer(serializers.ModelSerializer):
             "created_at",
             "stops",
             "remaining_hours",
-            "status",
+
         ]
         read_only_fields = [
             "distance",
@@ -169,6 +169,7 @@ class TripSerializer(serializers.ModelSerializer):
             "stops",
             "remaining_hours",
         ]
+
 
     def validate(self, data):
         driver = data.get("driver", getattr(self.instance, "driver", None))
