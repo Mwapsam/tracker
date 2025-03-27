@@ -79,8 +79,25 @@ class Trip(models.Model):
     completed_at = models.DateTimeField(null=True, blank=True)
     completed = models.BooleanField(default=False)
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["driver"],
+                condition=models.Q(completed=False),
+                name="unique_active_trip_per_driver",
+            )
+        ]
 
     def save(self, *args, **kwargs):
+        if not self.completed and self.pk is None:
+            existing_active = Trip.objects.filter(
+                driver=self.driver,
+                completed=False
+            ).exists()
+
+            if existing_active:
+                raise ValidationError("Driver already has an active trip")
+
         if not self.distance or not self.estimated_duration:
             try:
                 self.distance, duration = calculate_route_distance(
@@ -97,6 +114,12 @@ class Trip(models.Model):
 
         super().save(*args, **kwargs)
         self.generate_stops()
+
+    def active_trip(self):
+        return self.trip_set.filter(completed=False).first()
+
+    def has_active_trip(self):
+        return self.trip_set.filter(completed=False).exists()
 
     def generate_stops(self):
 
