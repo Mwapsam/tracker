@@ -30,10 +30,8 @@ class RouteCalculator:
         route = data["routes"][0]
         total_distance = (
             sum(leg["distance"]["value"] for leg in route["legs"]) / 1609.34
-        ) 
-        total_duration = (
-            sum(leg["duration"]["value"] for leg in route["legs"]) / 3600
-        )  
+        )
+        total_duration = sum(leg["duration"]["value"] for leg in route["legs"]) / 3600
         polyline_str = route["overview_polyline"]["points"]
         waypoints = self._decode_polyline(polyline_str)
         return {
@@ -66,7 +64,7 @@ class RouteCalculator:
             if station:
                 station["scheduled_time"] = start_time + timedelta(
                     hours=target_mile / 50
-                )  
+                )
                 station["distance_from_start"] = target_mile
                 stops.append(station)
 
@@ -83,7 +81,7 @@ class RouteCalculator:
         url = "https://maps.googleapis.com/maps/api/place/nearbysearch/json"
         params = {
             "location": f"{location['lat']},{location['lng']}",
-            "radius": radius,  
+            "radius": radius,
             "type": "gas_station",
             "key": self.api_key,
             "rankby": "distance",
@@ -98,6 +96,28 @@ class RouteCalculator:
                 "location_lat": station["geometry"]["location"]["lat"],
                 "location_lon": station["geometry"]["location"]["lng"],
                 "duration": timedelta(minutes=30),
+            }
+        return None
+
+    def _find_rest_stop(self, location: Dict, radius: int = 5000) -> Optional[Dict]:
+        url = "https://maps.googleapis.com/maps/api/place/nearbysearch/json"
+        params = {
+            "location": f"{location['lat']},{location['lng']}",
+            "radius": radius,
+            "type": "rest_stop",
+            "key": self.api_key,
+            "rankby": "distance",
+        }
+        response = requests.get(url, params=params)
+        data = response.json()
+        if data["status"] == "OK" and data["results"]:
+            stop = data["results"][0]
+            return {
+                "stop_type": "REST",
+                "location_name": stop["name"],
+                "location_lat": stop["geometry"]["location"]["lat"],
+                "location_lon": stop["geometry"]["location"]["lng"],
+                "duration": timedelta(minutes=45),
             }
         return None
 
@@ -141,4 +161,3 @@ def calculate_rest_stops(
             stops.append(rest_stop)
 
     return stops
-
