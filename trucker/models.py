@@ -115,7 +115,7 @@ class Trip(models.Model):
             self.distance, duration = calculate_route_distance(
                 self.current_location, self.pickup_location, self.dropoff_location
             )
-            self.estimated_duration = timezone.timedelta(hours=duration)
+            self.estimated_duration = timedelta(hours=duration)
         except Exception as e:
             raise ValidationError(f"Route calculation failed: {str(e)}") from e
 
@@ -135,7 +135,7 @@ class Trip(models.Model):
                 Stop.objects.bulk_create([Stop(trip=self, **stop) for stop in fuel_stops])
 
                 rest_stops = calculate_rest_stops(
-                    total_miles=self.distance,  # Corrected parameter
+                    total_miles=self.distance, 
                     start_time=self.start_time,
                     origin=self.pickup_location,
                     destination=self.dropoff_location,
