@@ -24,8 +24,9 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework.authtoken",
     "corsheaders",
+    "model_utils",
     # Local Apps
-    "trucker",
+    "trucker.apps.TripsConfig",
 ]
 
 MIDDLEWARE = [

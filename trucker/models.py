@@ -1,10 +1,13 @@
-from django.db import models
+from datetime import timedelta
+from django.db import models, transaction
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from django.conf import settings
+
+from model_utils import FieldTracker
 
 from trucker.services.route_services import calculate_route_distance
 from trucker.services.stop_services import calculate_fuel_stops, calculate_rest_stops
@@ -68,7 +71,10 @@ class Driver(models.Model):
 class Trip(models.Model):
     driver = models.ForeignKey("Driver", on_delete=models.CASCADE)
     vehicle = models.ForeignKey(
-        "Vehicle", on_delete=models.CASCADE, null=True, blank=True
+        "Vehicle",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True, 
     )
     current_location = models.CharField(max_length=200)
     pickup_location = models.CharField(max_length=200)
@@ -81,6 +87,10 @@ class Trip(models.Model):
     completed_at = models.DateTimeField(null=True, blank=True)
     completed = models.BooleanField(default=False)
 
+    tracker = FieldTracker(
+        fields=["distance", "pickup_location", "dropoff_location", "start_time"]
+    )
+
     class Meta:
         constraints = [
             models.UniqueConstraint(
@@ -91,71 +101,74 @@ class Trip(models.Model):
         ]
 
     def save(self, *args, **kwargs):
-        if not self.completed and self.pk is None:
-            existing_active = Trip.objects.filter(
-                driver=self.driver, completed=False
-            ).exists()
-
-            if existing_active:
+        if self.pk is None and not self.completed:
+            if Trip.objects.filter(driver=self.driver, completed=False).exists():
                 raise ValidationError("Driver already has an active trip")
 
         if not self.distance or not self.estimated_duration:
-            try:
-                self.distance, duration = calculate_route_distance(
-                    self.current_location, self.pickup_location, self.dropoff_location
-                )
-                # set estimated_duration
-            except Exception as e:
-                raise ValidationError(f"Route calculation failed: {str(e)}")
+            self.calculate_route_details()
 
         super().save(*args, **kwargs)
-        self.generate_stops()
 
-    def active_trip(self):
-        return self.trip_set.filter(completed=False).first()
-
-    def has_active_trip(self):
-        return self.trip_set.filter(completed=False).exists()
+    def calculate_route_details(self):
+        try:
+            self.distance, duration = calculate_route_distance(
+                self.current_location, self.pickup_location, self.dropoff_location
+            )
+            self.estimated_duration = timezone.timedelta(hours=duration)
+        except Exception as e:
+            raise ValidationError(f"Route calculation failed: {str(e)}") from e
 
     def generate_stops(self):
+        with transaction.atomic():
+            self.stops.all().delete()
 
-        self.stops.all().delete()
+            try:
+                fuel_stops = calculate_fuel_stops(
+                    self.distance,
+                    self.start_time,
+                    origin=self.pickup_location,
+                    destination=self.dropoff_location,
+                    api_key=settings.MAPS_API_KEY,
+                )
+                Stop.objects.bulk_create(
+                    [Stop(trip=self, **stop) for stop in fuel_stops]
+                )
 
-        fuel_stops = calculate_fuel_stops(
-            self.distance,
-            self.start_time,
-            origin=self.pickup_location,
-            destination=self.dropoff_location,
-            api_key=settings.MAPS_API_KEY,
-        )
-        for stop in fuel_stops:
-            Stop.objects.create(trip=self, **stop)
+                rest_stops = calculate_rest_stops(
+                    self.estimated_duration.total_seconds() / 3600, self.start_time
+                )
+                Stop.objects.bulk_create(
+                    [Stop(trip=self, **stop) for stop in rest_stops]
+                )
 
-        rest_stops = calculate_rest_stops(
-            self.estimated_duration.total_seconds() / 3600, self.start_time
-        )
-        for stop in rest_stops:
-            Stop.objects.create(trip=self, **stop)
+            except Exception as e:
+                raise ValidationError(f"Stop generation failed: {str(e)}") from e
 
 
 class Stop(models.Model):
-    TRUCK_STOP_TYPES = [
-        ("FUEL", "Fuel Stop"),
-        ("REST", "Rest Break"),
-        ("LOAD", "Loading/Unloading"),
-    ]
+    class StopType(models.TextChoices):
+        FUEL = "FUEL", "Fuel Stop"
+        REST = "REST", "Rest Break"
+        LOAD = "LOAD", "Loading/Unloading"
 
-    trip = models.ForeignKey("Trip", on_delete=models.CASCADE, related_name="stops")
-    stop_type = models.CharField(max_length=10, choices=TRUCK_STOP_TYPES)
+    trip = models.ForeignKey(Trip, on_delete=models.CASCADE, related_name="stops")
+    stop_type = models.CharField(max_length=10, choices=StopType.choices)
     location_name = models.CharField(max_length=255)
-    location_lat = models.FloatField(null=True, blank=True)
-    location_lon = models.FloatField(null=True, blank=True)
+    location_lat = models.FloatField()
+    location_lon = models.FloatField()
     scheduled_time = models.DateTimeField()
     actual_time = models.DateTimeField(null=True, blank=True)
     duration = models.DurationField(default=timezone.timedelta(minutes=30))
 
     def __str__(self):
-        return f"{self.stop_type} Stop at {self.location_name}"
+        return f"{self.get_stop_type_display()} at {self.location_name}"
+
+    class Meta:
+        ordering = ["scheduled_time"]
+        indexes = [
+            models.Index(fields=["scheduled_time", "stop_type"]),
+        ]
 
 
 class Vehicle(models.Model):

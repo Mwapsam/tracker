@@ -4,6 +4,7 @@ from trucker.models import Trip
 
 
 @receiver(post_save, sender=Trip)
-def generate_trip_stops(sender, instance, created, **kwargs):
-    if created:
+def update_trip_stops(sender, instance, created, **kwargs):
+    critical_fields = ["distance", "pickup_location", "dropoff_location", "start_time"]
+    if created or any(instance.tracker.has_changed(field) for field in critical_fields):
         instance.generate_stops()

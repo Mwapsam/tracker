@@ -7,10 +7,9 @@ from typing import List, Dict, Optional
 class RouteCalculator:
     def __init__(self, google_maps_key: str):
         self.api_key = google_maps_key
-        self.fuel_range = 1000  # miles between fuel stops
+        self.fuel_range = 1000
 
     def get_route_details(self, origin: str, destination: str) -> Dict:
-        """Get complete route details including polyline, distance and duration."""
         url = "https://maps.googleapis.com/maps/api/directions/json"
         params = {
             "origin": origin,
@@ -31,10 +30,10 @@ class RouteCalculator:
         route = data["routes"][0]
         total_distance = (
             sum(leg["distance"]["value"] for leg in route["legs"]) / 1609.34
-        )  # meters to miles
+        ) 
         total_duration = (
             sum(leg["duration"]["value"] for leg in route["legs"]) / 3600
-        )  # seconds to hours
+        )  
         polyline_str = route["overview_polyline"]["points"]
         waypoints = self._decode_polyline(polyline_str)
         return {
@@ -45,13 +44,11 @@ class RouteCalculator:
         }
 
     def _decode_polyline(self, polyline_str: str) -> List[Dict]:
-        """Decode an encoded polyline into a list of coordinate dictionaries."""
         return [{"lat": lat, "lng": lng} for lat, lng in polyline.decode(polyline_str)]
 
     def calculate_fuel_stops(
         self, origin: str, destination: str, start_time, route: Optional[Dict] = None
     ) -> List[Dict]:
-        """Calculate fuel stops along the route using a nearby search for gas stations."""
         if route is None:
             route = self.get_route_details(origin, destination)
 
@@ -69,7 +66,7 @@ class RouteCalculator:
             if station:
                 station["scheduled_time"] = start_time + timedelta(
                     hours=target_mile / 50
-                )  # Estimated time, adjust average speed as needed
+                )  
                 station["distance_from_start"] = target_mile
                 stops.append(station)
 
@@ -78,17 +75,15 @@ class RouteCalculator:
     def _find_route_waypoint(
         self, waypoints: List[Dict], target_mile: float, total_miles: float
     ) -> Dict:
-        """Find an approximate waypoint corresponding to a target mile marker."""
         mile_per_point = total_miles / len(waypoints)
         index = min(int(target_mile / mile_per_point), len(waypoints) - 1)
         return waypoints[index]
 
     def _find_fuel_station(self, location: Dict, radius: int = 5000) -> Optional[Dict]:
-        """Find the nearest fuel station to a given location using the Places API."""
         url = "https://maps.googleapis.com/maps/api/place/nearbysearch/json"
         params = {
             "location": f"{location['lat']},{location['lng']}",
-            "radius": radius,  # in meters
+            "radius": radius,  
             "type": "gas_station",
             "key": self.api_key,
             "rankby": "distance",
@@ -113,3 +108,75 @@ def calculate_fuel_stops(
     calculator = RouteCalculator(api_key)
     route = calculator.get_route_details(origin, destination)
     return calculator.calculate_fuel_stops(origin, destination, start_time, route)
+
+
+def calculate_rest_stops(
+    total_miles: float,
+    start_time,
+    origin: str,
+    destination: str,
+    api_key: str,
+    max_drive_hours: int = 4,
+    avg_speed: int = 50,
+) -> List[Dict]:
+    """
+    Calculate rest stops along a route based on driving duration constraints.
+    A stop is scheduled every `max_drive_hours` hours, searching for rest areas or restaurants.
+
+    :param total_miles: Total distance of the route in miles.
+    :param start_time: Start datetime of the journey.
+    :param origin: Starting location.
+    :param destination: Ending location.
+    :param api_key: Google Maps API key.
+    :param max_drive_hours: Maximum hours a driver should drive before taking a rest stop.
+    :param avg_speed: Average driving speed in mph.
+    :return: List of scheduled rest stops.
+    """
+    calculator = RouteCalculator(api_key)
+    route = calculator.get_route_details(origin, destination)
+
+    stops = []
+    total_hours = total_miles / avg_speed
+    num_stops = int(total_hours // max_drive_hours)
+
+    for i in range(1, num_stops + 1):
+        target_mile = i * max_drive_hours * avg_speed
+        waypoint = calculator._find_route_waypoint(
+            route["waypoints"], target_mile, total_miles
+        )
+
+        rest_stop = calculator._find_rest_stop(waypoint)
+        if rest_stop:
+            rest_stop["scheduled_time"] = start_time + timedelta(
+                hours=i * max_drive_hours
+            )
+            rest_stop["distance_from_start"] = target_mile
+            stops.append(rest_stop)
+
+    return stops
+
+
+def _find_rest_stop(self, location: Dict, radius: int = 5000) -> Optional[Dict]:
+    """
+    Find a nearby rest stop, such as a rest area or restaurant, using Google Places API.
+    """
+    url = "https://maps.googleapis.com/maps/api/place/nearbysearch/json"
+    params = {
+        "location": f"{location['lat']},{location['lng']}",
+        "radius": radius,
+        "type": "restaurant|rest_area",
+        "key": self.api_key,
+        "rankby": "distance",
+    }
+    response = requests.get(url, params=params)
+    data = response.json()
+    if data["status"] == "OK" and data["results"]:
+        stop = data["results"][0]
+        return {
+            "stop_type": "REST",
+            "location_name": stop["name"],
+            "location_lat": stop["geometry"]["location"]["lat"],
+            "location_lon": stop["geometry"]["location"]["lng"],
+            "duration": timedelta(minutes=30),
+        }
+    return None
