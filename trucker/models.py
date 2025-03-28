@@ -119,6 +119,7 @@ class Trip(models.Model):
         except Exception as e:
             raise ValidationError(f"Route calculation failed: {str(e)}") from e
 
+
     def generate_stops(self):
         with transaction.atomic():
             self.stops.all().delete()
@@ -131,16 +132,16 @@ class Trip(models.Model):
                     destination=self.dropoff_location,
                     api_key=settings.MAPS_API_KEY,
                 )
-                Stop.objects.bulk_create(
-                    [Stop(trip=self, **stop) for stop in fuel_stops]
-                )
+                Stop.objects.bulk_create([Stop(trip=self, **stop) for stop in fuel_stops])
 
                 rest_stops = calculate_rest_stops(
-                    self.estimated_duration.total_seconds() / 3600, self.start_time
+                    total_miles=self.distance,  # Corrected parameter
+                    start_time=self.start_time,
+                    origin=self.pickup_location,
+                    destination=self.dropoff_location,
+                    api_key=settings.MAPS_API_KEY,
                 )
-                Stop.objects.bulk_create(
-                    [Stop(trip=self, **stop) for stop in rest_stops]
-                )
+                Stop.objects.bulk_create([Stop(trip=self, **stop) for stop in rest_stops])
 
             except Exception as e:
                 raise ValidationError(f"Stop generation failed: {str(e)}") from e

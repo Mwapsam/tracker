@@ -119,19 +119,6 @@ def calculate_rest_stops(
     max_drive_hours: int = 4,
     avg_speed: int = 50,
 ) -> List[Dict]:
-    """
-    Calculate rest stops along a route based on driving duration constraints.
-    A stop is scheduled every `max_drive_hours` hours, searching for rest areas or restaurants.
-
-    :param total_miles: Total distance of the route in miles.
-    :param start_time: Start datetime of the journey.
-    :param origin: Starting location.
-    :param destination: Ending location.
-    :param api_key: Google Maps API key.
-    :param max_drive_hours: Maximum hours a driver should drive before taking a rest stop.
-    :param avg_speed: Average driving speed in mph.
-    :return: List of scheduled rest stops.
-    """
     calculator = RouteCalculator(api_key)
     route = calculator.get_route_details(origin, destination)
 
@@ -155,28 +142,3 @@ def calculate_rest_stops(
 
     return stops
 
-
-def _find_rest_stop(self, location: Dict, radius: int = 5000) -> Optional[Dict]:
-    """
-    Find a nearby rest stop, such as a rest area or restaurant, using Google Places API.
-    """
-    url = "https://maps.googleapis.com/maps/api/place/nearbysearch/json"
-    params = {
-        "location": f"{location['lat']},{location['lng']}",
-        "radius": radius,
-        "type": "restaurant|rest_area",
-        "key": self.api_key,
-        "rankby": "distance",
-    }
-    response = requests.get(url, params=params)
-    data = response.json()
-    if data["status"] == "OK" and data["results"]:
-        stop = data["results"][0]
-        return {
-            "stop_type": "REST",
-            "location_name": stop["name"],
-            "location_lat": stop["geometry"]["location"]["lat"],
-            "location_lon": stop["geometry"]["location"]["lng"],
-            "duration": timedelta(minutes=30),
-        }
-    return None
