@@ -1,9 +1,10 @@
-from datetime import timedelta
+from datetime import timedelta, datetime
 from django.db import models, transaction
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 from django.db.models.signals import post_save, post_delete
+from django.utils.timezone import is_aware, make_aware, get_current_timezone
 from django.dispatch import receiver
 from django.conf import settings
 
@@ -74,7 +75,7 @@ class Trip(models.Model):
         "Vehicle",
         on_delete=models.SET_NULL,
         null=True,
-        blank=True, 
+        blank=True,
     )
     current_location = models.CharField(max_length=200)
     pickup_location = models.CharField(max_length=200)
@@ -90,6 +91,9 @@ class Trip(models.Model):
     tracker = FieldTracker(
         fields=["distance", "pickup_location", "dropoff_location", "start_time"]
     )
+
+    def __str__(self):
+        return self.driver.user.username
 
     class Meta:
         constraints = [
@@ -116,12 +120,11 @@ class Trip(models.Model):
                 self.current_location, self.pickup_location, self.dropoff_location
             )
             if isinstance(duration, timedelta):
-                self.estimated_duration = duration  
+                self.estimated_duration = duration
             else:
-                self.estimated_duration = timedelta(hours=duration) 
+                self.estimated_duration = timedelta(hours=duration)
         except Exception as e:
             raise ValidationError(f"Route calculation failed: {str(e)}") from e
-
 
     def generate_stops(self):
         with transaction.atomic():
@@ -135,19 +138,65 @@ class Trip(models.Model):
                     destination=self.dropoff_location,
                     api_key=settings.MAPS_API_KEY,
                 )
-                Stop.objects.bulk_create([Stop(trip=self, **stop) for stop in fuel_stops])
+                validated_fuel = [
+                    self.validate_stop_data(stop, "FUEL") for stop in fuel_stops
+                ]
+                Stop.objects.bulk_create(
+                    [Stop(trip=self, **stop) for stop in validated_fuel]
+                )
 
                 rest_stops = calculate_rest_stops(
-                    total_miles=self.distance, 
+                    total_miles=self.distance,
                     start_time=self.start_time,
                     origin=self.pickup_location,
                     destination=self.dropoff_location,
                     api_key=settings.MAPS_API_KEY,
                 )
-                Stop.objects.bulk_create([Stop(trip=self, **stop) for stop in rest_stops])
+                validated_rest = [
+                    self.validate_stop_data(stop, "REST") for stop in rest_stops
+                ]
+                Stop.objects.bulk_create(
+                    [Stop(trip=self, **stop) for stop in validated_rest]
+                )
 
             except Exception as e:
                 raise ValidationError(f"Stop generation failed: {str(e)}") from e
+
+    def validate_stop_data(self, stop_data: dict, expected_type: str) -> dict:
+        required_fields = {
+            "location_name": str,
+            "location_lat": float,
+            "location_lon": float,
+            "scheduled_time": (datetime, timezone.datetime),
+            "duration": (timedelta, timezone.timedelta),
+        }
+
+        if stop_data.get("stop_type", "") != expected_type:
+            raise ValidationError(
+                f"Invalid stop_type: {stop_data.get('stop_type')}. Expected {expected_type}"
+            )
+
+        for field, field_type in required_fields.items():
+            if field not in stop_data:
+                raise ValidationError(f"Missing required field: {field}")
+
+            if not isinstance(stop_data[field], field_type):
+                raise ValidationError(
+                    f"Invalid type for {field}. Expected {field_type}, got {type(stop_data[field])}"
+                )
+
+        if isinstance(stop_data["scheduled_time"], datetime):
+            stop_data["scheduled_time"] = timezone.make_aware(
+                stop_data["scheduled_time"]
+            )
+
+        if not (-90 <= stop_data["location_lat"] <= 90):
+            raise ValidationError(f"Invalid latitude: {stop_data['location_lat']}")
+
+        if not (-180 <= stop_data["location_lon"] <= 180):
+            raise ValidationError(f"Invalid longitude: {stop_data['location_lon']}")
+
+        return stop_data
 
 
 class Stop(models.Model):
@@ -173,6 +222,24 @@ class Stop(models.Model):
         indexes = [
             models.Index(fields=["scheduled_time", "stop_type"]),
         ]
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(location_lat__gte=-90) & models.Q(location_lat__lte=90),
+                name="valid_latitude",
+            ),
+            models.CheckConstraint(
+                check=models.Q(location_lon__gte=-180)
+                & models.Q(location_lon__lte=180),
+                name="valid_longitude",
+            ),
+        ]
+
+    def clean(self):
+        if self.scheduled_time < timezone.now():
+            raise ValidationError("Scheduled time cannot be in the past")
+
+        if self.duration.total_seconds() < 1800:
+            raise ValidationError("Minimum stop duration is 30 minutes")
 
 
 class Vehicle(models.Model):

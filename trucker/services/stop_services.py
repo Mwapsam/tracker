@@ -122,11 +122,12 @@ class RouteCalculator:
         return None
 
 
-def calculate_fuel_stops(
-    total_miles: float, start_time, origin: str, destination: str, api_key: str
-) -> List[Dict]:
+def calculate_fuel_stops(total_miles, start_time, origin, destination, api_key):
     calculator = RouteCalculator(api_key)
     route = calculator.get_route_details(origin, destination)
+
+    route["distance"] = total_miles
+
     return calculator.calculate_fuel_stops(origin, destination, start_time, route)
 
 
@@ -146,18 +147,25 @@ def calculate_rest_stops(
     total_hours = total_miles / avg_speed
     num_stops = int(total_hours // max_drive_hours)
 
-    for i in range(1, num_stops + 1):
-        target_mile = i * max_drive_hours * avg_speed
+    waypoints = calculator._decode_polyline(route["polyline"])
+
+    interval_miles = max_drive_hours * avg_speed
+    intervals = [interval_miles * (i + 1) for i in range(num_stops)]
+
+    for target_mile in intervals:
         waypoint = calculator._find_route_waypoint(
-            route["waypoints"], target_mile, total_miles
+            waypoints, target_mile, route["distance"]
         )
 
         rest_stop = calculator._find_rest_stop(waypoint)
         if rest_stop:
-            rest_stop["scheduled_time"] = start_time + timedelta(
-                hours=i * max_drive_hours
+            rest_stop.update(
+                {
+                    "scheduled_time": start_time
+                    + timedelta(hours=target_mile / avg_speed),
+                    "distance_from_start": target_mile,
+                }
             )
-            rest_stop["distance_from_start"] = target_mile
             stops.append(rest_stop)
 
     return stops
