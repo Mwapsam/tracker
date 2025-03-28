@@ -26,7 +26,7 @@ INSTALLED_APPS = [
     "corsheaders",
     "model_utils",
     # Local Apps
-    "trucker.apps.TripsConfig",
+    "trucker.apps.TruckerConfig",
 ]
 
 MIDDLEWARE = [
