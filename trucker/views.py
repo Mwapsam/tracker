@@ -322,6 +322,13 @@ class TripViewSet(viewsets.ModelViewSet):
             status=status.HTTP_200_OK,
         )
 
+    @action(detail=True, methods=["post"])
+    def stops(self, request, pk=None):
+        trip = self.get_object()
+        trip.generate_stops()
+        serializer = self.get_serializer(trip)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
     @action(detail=True, methods=["get"])
     def status(self, request, pk=None):
         trip = self.get_object()
