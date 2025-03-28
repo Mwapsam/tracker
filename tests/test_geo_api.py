@@ -1,4 +1,3 @@
-import itertools
 import timeit
 import pytest
 from datetime import datetime, timedelta
@@ -6,9 +5,8 @@ from unittest.mock import patch, Mock
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.utils import timezone
-from django.utils.timezone import make_aware
 
-from trucker.models import Stop, Trip
+from trucker.models import Trip
 from trucker.services.stop_services import (
     RouteCalculator,
     calculate_fuel_stops,

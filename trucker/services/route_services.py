@@ -5,37 +5,43 @@ from django.utils import timezone
 
 def calculate_route_distance(current_location, pickup_location, dropoff_location):
     """
-    Uses the Google Maps Directions API to compute the route distance and estimated duration.
-    The route is calculated from the current location, via the pickup location, to the dropoff location.
+    Calculate route distance and duration using Google Maps Directions API
+    Returns: (distance_in_miles, duration_timedelta)
     """
-    api_key = settings.MAPS_API_KEY  
+    api_key = settings.MAPS_API_KEY
     base_url = "https://maps.googleapis.com/maps/api/directions/json"
 
     params = {
         "origin": current_location,
         "destination": dropoff_location,
-        "waypoints": pickup_location, 
+        "waypoints": f"via:{pickup_location}" if pickup_location else None,
         "key": api_key,
+        "units": "imperial",
+        "optimizeWaypoints": "true",
     }
 
-    response = requests.get(base_url, params=params)
-
-    if response.status_code == 200:
+    try:
+        response = requests.get(base_url, params=params, timeout=10)
+        response.raise_for_status()
         data = response.json()
-        if data.get("status") != "OK":
-            raise Exception(
-                "Google Maps API error: " + data.get("status", "Unknown error")
-            )
+
+        if data["status"] != "OK":
+            raise ValueError(f"API Error: {data.get('error_message', 'Unknown error')}")
 
         route = data["routes"][0]
-        total_distance = 0
-        total_duration = 0
-        
-        for leg in route["legs"]:
-            total_distance += leg["distance"]["value"]  
-            total_duration += leg["duration"]["value"]  
+        total_distance = sum(
+            leg["distance"]["value"] for leg in route["legs"]
+        )  
+        total_duration = sum(
+            leg["duration"]["value"] for leg in route["legs"]
+        )  
 
-        distance_km = total_distance / 1000  
-        return distance_km, timezone.timedelta(seconds=total_duration)
-    else:
-        raise Exception("Error fetching route data from Google Maps API")
+        return (
+            total_distance / 1609.34,  
+            timezone.timedelta(seconds=total_duration),
+        )
+
+    except requests.exceptions.RequestException as e:
+        raise ConnectionError(f"Network error: {str(e)}") from e
+    except (KeyError, IndexError) as e:
+        raise ValueError("Invalid API response format") from e
