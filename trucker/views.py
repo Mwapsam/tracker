@@ -1,8 +1,10 @@
 from rest_framework import viewsets, views
+from rest_framework.throttling import UserRateThrottle
 from rest_framework.exceptions import ValidationError
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from django.core.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 
@@ -23,7 +25,8 @@ from .serializers import (
 from django.utils import timezone
 from django.db import transaction
 from datetime import timedelta
-from .services.hos_services import generate_hos_logs
+import logging
+logger = logging.getLogger(__name__)
 
 
 class CustomTokenObtainPairView(TokenObtainPairView):
@@ -322,12 +325,46 @@ class TripViewSet(viewsets.ModelViewSet):
             status=status.HTTP_200_OK,
         )
 
-    @action(detail=True, methods=["post"])
+    @action(
+        detail=True,
+        methods=["post"],
+        permission_classes=[IsAuthenticated],
+        throttle_classes=[UserRateThrottle],
+        url_path="stops",
+    )
     def stops(self, request, pk=None):
-        trip = self.get_object()
-        trip.generate_stops()
-        serializer = self.get_serializer(trip)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        try:
+            trip = self.get_object()
+
+            if trip.completed:
+                return Response(
+                    {"detail": "Cannot generate stops for completed trips"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            if not request.user.has_perm("trip.generate_stops", trip):
+                return Response(
+                    {"detail": "You don't have permission to perform this action"},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+            with transaction.atomic():
+                trip.generate_stops()
+                trip.refresh_from_db()
+
+            serializer = TripDetailSerializer(trip)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        except ValidationError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except PermissionDenied as e:
+            return Response({"detail": str(e)}, status=status.HTTP_403_FORBIDDEN)
+        except Exception as e:
+            logger.error(f"Error generating stops for trip {pk}: {str(e)}")
+            return Response(
+                {"detail": "Error generating stops"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
     @action(detail=True, methods=["get"])
     def status(self, request, pk=None):
