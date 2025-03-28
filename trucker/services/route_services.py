@@ -12,9 +12,9 @@ def calculate_route_distance(current_location, pickup_location, dropoff_location
     base_url = "https://maps.googleapis.com/maps/api/directions/json"
 
     params = {
-        "origin": current_location,
+        "origin": pickup_location,
         "destination": dropoff_location,
-        "waypoints": pickup_location, 
+        "waypoints": current_location,
         "key": api_key,
     }
 
@@ -30,7 +30,7 @@ def calculate_route_distance(current_location, pickup_location, dropoff_location
         route = data["routes"][0]
         total_distance = 0
         total_duration = 0
-        
+
         for leg in route["legs"]:
             total_distance += leg["distance"]["value"]  
             total_duration += leg["duration"]["value"]  
