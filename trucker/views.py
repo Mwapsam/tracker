@@ -346,7 +346,7 @@ class TripViewSet(viewsets.ModelViewSet):
                 trip.generate_stops()
                 trip.refresh_from_db()
 
-            serializer = TripDetailSerializer(trip)
+            serializer = TripSerializer(trip)
             return Response(serializer.data, status=status.HTTP_200_OK)
 
         except ValidationError as e:
