@@ -115,7 +115,10 @@ class Trip(models.Model):
             self.distance, duration = calculate_route_distance(
                 self.current_location, self.pickup_location, self.dropoff_location
             )
-            self.estimated_duration = timedelta(hours=duration)
+            if isinstance(duration, timedelta):
+                self.estimated_duration = duration  
+            else:
+                self.estimated_duration = timedelta(hours=duration) 
         except Exception as e:
             raise ValidationError(f"Route calculation failed: {str(e)}") from e
 
