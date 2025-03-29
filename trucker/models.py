@@ -117,7 +117,7 @@ class Trip(models.Model):
     def calculate_route_details(self):
         try:
             self.distance, duration = calculate_route_distance(
-                self.current_location, self.pickup_location, self.dropoff_location
+                self.pickup_location, self.dropoff_location
             )
             if isinstance(duration, timedelta):
                 self.estimated_duration = duration
