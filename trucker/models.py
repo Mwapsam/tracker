@@ -233,12 +233,12 @@ class Stop(models.Model):
             ),
         ]
 
-    def clean(self):
-        if self.scheduled_time < timezone.now():
-            raise ValidationError("Scheduled time cannot be in the past")
+    # def clean(self):
+    #     if self.scheduled_time < timezone.now():
+    #         raise ValidationError("Scheduled time cannot be in the past")
 
-        if self.duration.total_seconds() < 1800:
-            raise ValidationError("Minimum stop duration is 30 minutes")
+    #     if self.duration.total_seconds() < 1800:
+    #         raise ValidationError("Minimum stop duration is 30 minutes")
 
 
 class Vehicle(models.Model):

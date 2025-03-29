@@ -352,9 +352,16 @@ class TripViewSet(viewsets.ModelViewSet):
                     api_key=settings.MAPS_API_KEY,
                 )
 
-                Stop.objects.bulk_create(
-                    [Stop(trip=self, **stop) for stop in fuel_stops]
-                )
+
+                for stop in fuel_stops:
+                    Stop.objects.create(
+                        trip=self,
+                        stop_type=stop.stop_type,
+                        location_name=stop.location_name,
+                        location_lat=stop.location_lat,
+                        location_lon=stop.location_lon,
+                        scheduled_time=stop.scheduled_time,
+                    )
 
             serializer = TripSerializer(trip)
             return Response(serializer.data, status=status.HTTP_200_OK)
