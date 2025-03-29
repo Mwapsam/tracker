@@ -26,6 +26,7 @@ from .serializers import (
 from django.utils import timezone
 from django.db import transaction
 from datetime import timedelta
+from django.conf import settings
 import logging
 logger = logging.getLogger(__name__)
 
