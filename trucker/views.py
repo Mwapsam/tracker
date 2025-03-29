@@ -352,7 +352,6 @@ class TripViewSet(viewsets.ModelViewSet):
                     api_key=settings.MAPS_API_KEY,
                 )
 
-
                 for stop in fuel_stops:
                     Stop.objects.create(
                         trip=self,
@@ -361,6 +360,7 @@ class TripViewSet(viewsets.ModelViewSet):
                         location_lat=stop.location_lat,
                         location_lon=stop.location_lon,
                         scheduled_time=stop.scheduled_time,
+                        duration=stop.duration,
                     )
 
             serializer = TripSerializer(trip)
