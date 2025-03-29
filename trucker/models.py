@@ -4,7 +4,6 @@ from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 from django.db.models.signals import post_save, post_delete
-from django.utils.timezone import is_aware, make_aware, get_current_timezone
 from django.dispatch import receiver
 from django.conf import settings
 

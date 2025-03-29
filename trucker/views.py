@@ -11,7 +11,8 @@ from rest_framework import status
 from spotter.settings.serializers import CustomTokenObtainPairSerializer
 from trucker.exceptions import TripValidationError
 from trucker.permissions import IsDriverOwner
-from .models import DutyStatus, LogEntry, Driver, Trip, Vehicle, Carrier
+from trucker.services.stop_services import calculate_fuel_stops
+from .models import DutyStatus, LogEntry, Driver, Trip, Vehicle, Carrier, Stop
 from .serializers import (
     DutyStatusSerializer,
     LogEntryCreateSerializer,
@@ -343,8 +344,17 @@ class TripViewSet(viewsets.ModelViewSet):
                 )
 
             with transaction.atomic():
-                trip.generate_stops()
-                trip.refresh_from_db()
+                fuel_stops = calculate_fuel_stops(
+                    trip.distance,
+                    trip.start_time,
+                    origin=trip.pickup_location,
+                    destination=trip.dropoff_location,
+                    api_key=settings.MAPS_API_KEY,
+                )
+
+                Stop.objects.bulk_create(
+                    [Stop(trip=self, **stop) for stop in fuel_stops]
+                )
 
             serializer = TripSerializer(trip)
             return Response(serializer.data, status=status.HTTP_200_OK)
