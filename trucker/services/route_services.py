@@ -1,5 +1,5 @@
-import re
 import requests
+import re
 from django.conf import settings
 
 
@@ -19,22 +19,18 @@ def calculate_route_distance(pickup_location, dropoff_location, mode="driving"):
 
     if response.status_code == 200 and data["status"] == "OK":
         try:
-            distance = data["rows"][0]["elements"][0]["distance"]["text"]
-            duration_text = data["rows"][0]["elements"][0]["duration"]["text"]
+            raw_distance = data["rows"][0]["elements"][0]["distance"]["text"]
+            distance = float(
+                re.sub(r"[^\d.]", "", raw_distance)
+            ) 
 
-            hours = 0
-            minutes = 0
-            match = re.search(r"(\d+)\s*hour", duration_text)
-            if match:
-                hours = int(match.group(1))
+            raw_duration = data["rows"][0]["elements"][0]["duration"]["text"]
+            duration_match = re.search(r"(\d+)", raw_duration) 
+            duration_hours = (
+                int(duration_match.group(1)) if duration_match else 0
+            ) 
 
-            match = re.search(r"(\d+)\s*min", duration_text)
-            if match:
-                minutes = int(match.group(1))
-
-            total_duration = hours + (minutes / 60)
-
-            return distance, total_duration
+            return distance, duration_hours
         except KeyError:
             return "Error: Could not retrieve distance data."
     else:
