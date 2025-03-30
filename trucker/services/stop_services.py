@@ -150,11 +150,17 @@ def map_stop_data(
 
 def flatten_and_map(raw_data: List[Dict], duration: str, stop_type: str) -> List[Dict]:
     mapped_stops = []
+    seen_times = set()
     for waypoint_data in raw_data:
         stations = waypoint_data.get("stations", [])
-        estimated_time = waypoint_data.get("scheduled_time", 0)
-        for station in stations:
-            mapped_stops.append(
-                map_stop_data(station, estimated_time, duration, stop_type)
-            )
+        scheduled_time = waypoint_data.get("scheduled_time")
+        scheduled_time_str = scheduled_time.isoformat() if scheduled_time else None
+        if scheduled_time_str and scheduled_time_str in seen_times:
+            continue
+        if not stations:
+            continue
+        station = stations[0]
+        mapped_stop = map_stop_data(station, scheduled_time, duration, stop_type)
+        mapped_stops.append(mapped_stop)
+        seen_times.add(scheduled_time_str)
     return mapped_stops
