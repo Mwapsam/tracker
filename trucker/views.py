@@ -367,7 +367,7 @@ class TripViewSet(viewsets.ModelViewSet):
                 )
 
                 Stop.objects.bulk_create(
-                    [Stop(trip=self, **stop) for stop in mapped_fuel_stops]
+                    [Stop(trip=trip, **stop) for stop in mapped_fuel_stops]
                 )
                 raw_rest_data = get_rest_stops(
                     api_key=settings.MAPS_API_KEY,
@@ -380,7 +380,7 @@ class TripViewSet(viewsets.ModelViewSet):
                 )
 
                 Stop.objects.bulk_create(
-                    [Stop(trip=self, **stop) for stop in mapped_rest_stops]
+                    [Stop(trip=trip, **stop) for stop in mapped_rest_stops]
                 )
 
             serializer = TripSerializer(trip)
