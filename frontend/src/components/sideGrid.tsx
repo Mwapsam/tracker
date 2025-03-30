@@ -70,7 +70,7 @@ const SideGrid: React.FC<Props> = ({
                   <Flex direction="column" flexGrow="1">
                     <Text weight="bold" size="4">
                       {trip
-                        ? `${trip.current_location} → ${trip.dropoff_location}`
+                        ? `${trip.pickup_location} → ${trip.dropoff_location}`
                         : "No trip data available"}
                     </Text>
                     <Text size="2" color="gray">

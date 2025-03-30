@@ -12,12 +12,9 @@ export const fetchTrip = async (): Promise<Trip[]> => {
 export const createTrip = async (tripData: TripFormData): Promise<Trip> => {
   try {
     const response = await axiosInstance.post(`/api/trips/`, tripData);
-    console.log(response);
 
     return response.data;
   } catch (error) {
-    console.log(error);
-
     if (axios.isAxiosError(error)) {
       console.error(
         "Error creating trip:",
