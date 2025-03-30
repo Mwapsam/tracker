@@ -1,6 +1,7 @@
 import requests
 from typing import List, Dict
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime, timedelta
 
 METERS_TO_MILES = 1 / 1609.34
 SECONDS_TO_HOURS = 1 / 3600
@@ -75,10 +76,18 @@ def query_places(
 
 
 def get_stops_concurrently(
-    api_key: str, origin: str, destination: str, interval_miles: int, place_type: str
+    api_key: str,
+    origin: str,
+    destination: str,
+    interval_miles: int,
+    place_type: str,
+    departure_time: datetime = None,
 ) -> List[Dict]:
     steps = get_route_steps(api_key, origin, destination)
     waypoints = collect_stops_by_interval(steps, interval_miles)
+
+    if departure_time is None:
+        departure_time = datetime.now()  # Default to current time if not provided
 
     stops_by_waypoint = []
     with ThreadPoolExecutor(max_workers=10) as executor:
@@ -93,11 +102,18 @@ def get_stops_concurrently(
             except Exception as exc:
                 raw_stops = []
                 print(f"Waypoint {waypoint} generated an exception: {exc}")
+
+            estimated_time = departure_time + timedelta(
+                hours=waypoint["estimated_time_hours"]
+            )
+
             stops_by_waypoint.append(
                 {
                     "waypoint": waypoint,
                     "stations": raw_stops,
-                    "scheduled_time": waypoint["estimated_time_hours"],
+                    "scheduled_time": estimated_time.strftime(
+                        "%Y-%m-%d %H:%M:%S"
+                    ),  # Format for Django's DateTimeField
                 }
             )
     return stops_by_waypoint
