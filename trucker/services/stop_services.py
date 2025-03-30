@@ -3,6 +3,7 @@ from typing import List, Dict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 METERS_TO_MILES = 1 / 1609.34
+SECONDS_TO_HOURS = 1 / 3600
 
 
 def get_route_steps(api_key: str, origin: str, destination: str) -> List[Dict]:
@@ -26,17 +27,29 @@ def collect_stops_by_interval(steps: List[Dict], interval_miles: int) -> List[Di
 
     stop_waypoints = []
     cumulative_distance = 0.0
+    cumulative_time = 0  # Track travel time in seconds
     step_index = 0
+
     for stop in range(1, num_stops + 1):
         target_distance = stop * interval_miles
         while step_index < len(steps) and cumulative_distance < target_distance:
-            cumulative_distance += (
-                steps[step_index]["distance"]["value"] * METERS_TO_MILES
-            )
+            step = steps[step_index]
+            cumulative_distance += step["distance"]["value"] * METERS_TO_MILES
+            cumulative_time += step["duration"]["value"]  # Duration in seconds
             step_index += 1
+
         if step_index - 1 < len(steps):
             waypoint = steps[step_index - 1]["end_location"]
-            stop_waypoints.append({"lat": waypoint["lat"], "lng": waypoint["lng"]})
+            stop_waypoints.append(
+                {
+                    "lat": waypoint["lat"],
+                    "lng": waypoint["lng"],
+                    "estimated_time_hours": round(
+                        cumulative_time * SECONDS_TO_HOURS, 2
+                    ),  # Convert seconds to hours
+                }
+            )
+
     return stop_waypoints
 
 
@@ -80,7 +93,13 @@ def get_stops_concurrently(
             except Exception as exc:
                 raw_stops = []
                 print(f"Waypoint {waypoint} generated an exception: {exc}")
-            stops_by_waypoint.append({"waypoint": waypoint, "stations": raw_stops})
+            stops_by_waypoint.append(
+                {
+                    "waypoint": waypoint,
+                    "stations": raw_stops,
+                    "scheduled_time": waypoint["estimated_time_hours"],
+                }
+            )
     return stops_by_waypoint
 
 
@@ -100,13 +119,16 @@ def get_rest_stops(
     )
 
 
-def map_stop_data(raw_station: dict, duration: str, stop_type: str) -> dict:
+def map_stop_data(
+    raw_station: dict, estimated_time: float, duration: str, stop_type: str
+) -> dict:
     return {
         "location_name": raw_station.get("name"),
         "location_lat": raw_station.get("geometry", {}).get("location", {}).get("lat"),
         "location_lon": raw_station.get("geometry", {}).get("location", {}).get("lng"),
         "duration": duration,
         "stop_type": stop_type,
+        "scheduled_time": estimated_time,
     }
 
 
@@ -114,6 +136,9 @@ def flatten_and_map(raw_data: List[Dict], duration: str, stop_type: str) -> List
     mapped_stops = []
     for waypoint_data in raw_data:
         stations = waypoint_data.get("stations", [])
+        estimated_time = waypoint_data.get("scheduled_time", 0)
         for station in stations:
-            mapped_stops.append(map_stop_data(station, duration, stop_type))
+            mapped_stops.append(
+                map_stop_data(station, estimated_time, duration, stop_type)
+            )
     return mapped_stops
