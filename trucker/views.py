@@ -359,7 +359,7 @@ class TripViewSet(viewsets.ModelViewSet):
                 raw_fuel_data = get_fueling_stations(
                     api_key=settings.MAPS_API_KEY,
                     origin=trip.pickup_location,
-                    destination=strip.dropoff_location,
+                    destination=trip.dropoff_location,
                     interval_miles=fueling_interval,
                 )
                 mapped_fuel_stops = flatten_and_map(
