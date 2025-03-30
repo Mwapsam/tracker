@@ -28,7 +28,7 @@ def collect_stops_by_interval(steps: List[Dict], interval_miles: int) -> List[Di
 
     stop_waypoints = []
     cumulative_distance = 0.0
-    cumulative_time = 0 
+    cumulative_time = 0
     step_index = 0
 
     for stop in range(1, num_stops + 1):
@@ -36,7 +36,7 @@ def collect_stops_by_interval(steps: List[Dict], interval_miles: int) -> List[Di
         while step_index < len(steps) and cumulative_distance < target_distance:
             step = steps[step_index]
             cumulative_distance += step["distance"]["value"] * METERS_TO_MILES
-            cumulative_time += step["duration"]["value"] 
+            cumulative_time += step["duration"]["value"]
             step_index += 1
 
         if step_index - 1 < len(steps):
@@ -47,7 +47,7 @@ def collect_stops_by_interval(steps: List[Dict], interval_miles: int) -> List[Di
                     "lng": waypoint["lng"],
                     "estimated_time_hours": round(
                         cumulative_time * SECONDS_TO_HOURS, 2
-                    ), 
+                    ),
                 }
             )
 
@@ -87,7 +87,7 @@ def get_stops_concurrently(
     waypoints = collect_stops_by_interval(steps, interval_miles)
 
     if departure_time is None:
-        departure_time = datetime.now()  
+        departure_time = datetime.now()
 
     stops_by_waypoint = []
     with ThreadPoolExecutor(max_workers=10) as executor:
@@ -111,9 +111,7 @@ def get_stops_concurrently(
                 {
                     "waypoint": waypoint,
                     "stations": raw_stops,
-                    "scheduled_time": estimated_time.strftime(
-                        "%Y-%m-%d %H:%M:%S"
-                    ),  
+                    "scheduled_time": estimated_time.strftime("%Y-%m-%d %H:%M:%S"),
                 }
             )
     return stops_by_waypoint
@@ -150,17 +148,34 @@ def map_stop_data(
 
 def flatten_and_map(raw_data: List[Dict], duration: str, stop_type: str) -> List[Dict]:
     mapped_stops = []
-    seen_times = set()
+    seen_times = []
+    threshold_seconds = 60
+
     for waypoint_data in raw_data:
-        stations = waypoint_data.get("stations", [])
-        scheduled_time = waypoint_data.get("scheduled_time")
-        scheduled_time_str = scheduled_time
-        if scheduled_time_str and scheduled_time_str in seen_times:
+        scheduled_time_str = waypoint_data.get("scheduled_time")
+        if not scheduled_time_str:
             continue
+
+        try:
+            scheduled_time = datetime.strptime(scheduled_time_str, "%Y-%m-%d %H:%M:%S")
+        except Exception as e:
+            print(f"Error parsing scheduled_time: {e}")
+            continue
+
+        duplicate = any(
+            abs((scheduled_time - seen_time).total_seconds()) < threshold_seconds
+            for seen_time in seen_times
+        )
+        if duplicate:
+            continue
+
+        stations = waypoint_data.get("stations", [])
         if not stations:
             continue
+
         station = stations[0]
-        mapped_stop = map_stop_data(station, scheduled_time, duration, stop_type)
+        mapped_stop = map_stop_data(station, scheduled_time_str, duration, stop_type)
         mapped_stops.append(mapped_stop)
-        seen_times.add(scheduled_time_str)
+        seen_times.append(scheduled_time)
+
     return mapped_stops
