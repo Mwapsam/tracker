@@ -1,5 +1,6 @@
 from django.core.exceptions import ValidationError
 from django.utils import timezone
+from datetime import datetime, timedelta
 
 
 def validate_overlapping_statuses(statuses, current_status):
@@ -64,3 +65,38 @@ def validate_sleeper_berth(statuses):
 
     if any((s.end_time - s.start_time).total_seconds() < 7 * 3600 for s in sb_periods):
         raise ValidationError("Sleeper berth periods must be at least 7 hours")
+
+
+def validate_stop_data(self, stop_data: dict, expected_type: str) -> dict:
+    required_fields = {
+        "location_name": str,
+        "location_lat": float,
+        "location_lon": float,
+        "scheduled_time": (datetime, timezone.datetime),
+        "duration": (timedelta, timezone.timedelta),
+    }
+
+    if stop_data.get("stop_type", "") != expected_type:
+        raise ValidationError(
+            f"Invalid stop_type: {stop_data.get('stop_type')}. Expected {expected_type}"
+        )
+
+    for field, field_type in required_fields.items():
+        if field not in stop_data:
+            raise ValidationError(f"Missing required field: {field}")
+
+        if not isinstance(stop_data[field], field_type):
+            raise ValidationError(
+                f"Invalid type for {field}. Expected {field_type}, got {type(stop_data[field])}"
+            )
+
+    if isinstance(stop_data["scheduled_time"], datetime):
+        stop_data["scheduled_time"] = timezone.make_aware(stop_data["scheduled_time"])
+
+    if not (-90 <= stop_data["location_lat"] <= 90):
+        raise ValidationError(f"Invalid latitude: {stop_data['location_lat']}")
+
+    if not (-180 <= stop_data["location_lon"] <= 180):
+        raise ValidationError(f"Invalid longitude: {stop_data['location_lon']}")
+
+    return stop_data

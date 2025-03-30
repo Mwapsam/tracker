@@ -8,10 +8,14 @@ from django.core.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 
+from django.db import transaction
+from datetime import timedelta
+from django.conf import settings
+import logging
+
 from spotter.settings.serializers import CustomTokenObtainPairSerializer
 from trucker.exceptions import TripValidationError
 from trucker.permissions import IsDriverOwner
-from trucker.services.stop_services import calculate_fuel_stops
 from .models import DutyStatus, LogEntry, Driver, Trip, Vehicle, Carrier, Stop
 from .serializers import (
     DutyStatusSerializer,
@@ -23,11 +27,15 @@ from .serializers import (
     VehicleSerializer,
     CarrierSerializer,
 )
+
+from trucker.services.stop_services import (
+    flatten_and_map,
+    get_fueling_stations,
+    get_rest_stops,
+)
 from django.utils import timezone
-from django.db import transaction
-from datetime import timedelta
-from django.conf import settings
-import logging
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -345,24 +353,35 @@ class TripViewSet(viewsets.ModelViewSet):
                 )
 
             with transaction.atomic():
-                fuel_stops = calculate_fuel_stops(
-                    trip.distance,
-                    trip.start_time,
-                    origin=trip.pickup_location,
-                    destination=trip.dropoff_location,
+                fueling_interval = 1000
+                rest_interval = 1000
+
+                raw_fuel_data = get_fueling_stations(
                     api_key=settings.MAPS_API_KEY,
+                    origin=trip.pickup_location,
+                    destination=strip.dropoff_location,
+                    interval_miles=fueling_interval,
+                )
+                mapped_fuel_stops = flatten_and_map(
+                    raw_fuel_data, duration="0:30:00", stop_type="FUEL"
                 )
 
-                for stop in fuel_stops:
-                    Stop.objects.create(
-                        trip=self,
-                        stop_type=stop.stop_type,
-                        location_name=stop.location_name,
-                        location_lat=stop.location_lat,
-                        location_lon=stop.location_lon,
-                        scheduled_time=stop.scheduled_time,
-                        duration=stop.duration,
-                    )
+                Stop.objects.bulk_create(
+                    [Stop(trip=self, **stop) for stop in mapped_fuel_stops]
+                )
+                raw_rest_data = get_rest_stops(
+                    api_key=settings.MAPS_API_KEY,
+                    origin=trip.pickup_location,
+                    destination=trip.dropoff_location,
+                    interval_miles=rest_interval,
+                )
+                mapped_rest_stops = flatten_and_map(
+                    raw_rest_data, duration="0:45:00", stop_type="REST"
+                )
+
+                Stop.objects.bulk_create(
+                    [Stop(trip=self, **stop) for stop in mapped_rest_stops]
+                )
 
             serializer = TripSerializer(trip)
             return Response(serializer.data, status=status.HTTP_200_OK)

@@ -10,7 +10,11 @@ from django.conf import settings
 from model_utils import FieldTracker
 
 from trucker.services.route_services import calculate_route_distance
-from trucker.services.stop_services import calculate_fuel_stops, calculate_rest_stops
+from trucker.services.stop_services import (
+    flatten_and_map,
+    get_fueling_stations,
+    get_rest_stops,
+)
 from trucker.validators import (
     check_34_hour_restart,
     validate_11_hour_driving_limit,
@@ -130,72 +134,39 @@ class Trip(models.Model):
             self.stops.all().delete()
 
             try:
-                fuel_stops = calculate_fuel_stops(
-                    self.distance,
-                    self.start_time,
+                fueling_interval = 1000
+                rest_interval = 1000
+
+                raw_fuel_data = get_fueling_stations(
+                    api_key=settings.MAPS_API_KEY,
                     origin=self.pickup_location,
                     destination=self.dropoff_location,
-                    api_key=settings.MAPS_API_KEY,
+                    interval_miles=fueling_interval,
                 )
-                validated_fuel = [
-                    self.validate_stop_data(stop, "FUEL") for stop in fuel_stops
-                ]
-                Stop.objects.bulk_create(
-                    [Stop(trip=self, **stop) for stop in validated_fuel]
+                mapped_fuel_stops = flatten_and_map(
+                    raw_fuel_data, duration="0:30:00", stop_type="FUEL"
                 )
 
-                rest_stops = calculate_rest_stops(
-                    total_miles=self.distance,
-                    start_time=self.start_time,
+                Stop.objects.bulk_create(
+                    [Stop(trip=self, **stop) for stop in mapped_fuel_stops]
+                )
+                raw_rest_data = get_rest_stops(
+                    api_key=settings.MAPS_API_KEY,
                     origin=self.pickup_location,
                     destination=self.dropoff_location,
-                    api_key=settings.MAPS_API_KEY,
+                    interval_miles=rest_interval,
                 )
-                validated_rest = [
-                    self.validate_stop_data(stop, "REST") for stop in rest_stops
-                ]
-                Stop.objects.bulk_create(
-                    [Stop(trip=self, **stop) for stop in validated_rest]
+                mapped_rest_stops = flatten_and_map(
+                    raw_rest_data, duration="0:45:00", stop_type="REST"
                 )
 
+                Stop.objects.bulk_create(
+                    [Stop(trip=self, **stop) for stop in mapped_rest_stops]
+                )
             except Exception as e:
                 raise ValidationError(f"Stop generation failed: {str(e)}") from e
 
-    def validate_stop_data(self, stop_data: dict, expected_type: str) -> dict:
-        required_fields = {
-            "location_name": str,
-            "location_lat": float,
-            "location_lon": float,
-            "scheduled_time": (datetime, timezone.datetime),
-            "duration": (timedelta, timezone.timedelta),
-        }
 
-        if stop_data.get("stop_type", "") != expected_type:
-            raise ValidationError(
-                f"Invalid stop_type: {stop_data.get('stop_type')}. Expected {expected_type}"
-            )
-
-        for field, field_type in required_fields.items():
-            if field not in stop_data:
-                raise ValidationError(f"Missing required field: {field}")
-
-            if not isinstance(stop_data[field], field_type):
-                raise ValidationError(
-                    f"Invalid type for {field}. Expected {field_type}, got {type(stop_data[field])}"
-                )
-
-        if isinstance(stop_data["scheduled_time"], datetime):
-            stop_data["scheduled_time"] = timezone.make_aware(
-                stop_data["scheduled_time"]
-            )
-
-        if not (-90 <= stop_data["location_lat"] <= 90):
-            raise ValidationError(f"Invalid latitude: {stop_data['location_lat']}")
-
-        if not (-180 <= stop_data["location_lon"] <= 180):
-            raise ValidationError(f"Invalid longitude: {stop_data['location_lon']}")
-
-        return stop_data
 
 
 class Stop(models.Model):
