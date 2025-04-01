@@ -163,9 +163,6 @@ export default function LogEntryForm({ drivers, vehicles }: LogEntryFormProps) {
         vehicle: formData.vehicle,
       };
 
-      console.log("Form data:", formDataCopy);
-      
-
       const response = await createLog(formDataCopy);
       if (response?.id) {
         setFormData({

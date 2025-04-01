@@ -125,9 +125,8 @@ const Driver: React.FC<Props> = ({ vehicles }) => {
 
       setShowTripForm(false);
     } catch (error) {
-      console.error("Failed to create trip:", error);
-    } finally {
       setIsCreatingTrip(false);
+      console.error("Failed to create trip:", error);
     }
   };
 
@@ -219,84 +218,131 @@ const Driver: React.FC<Props> = ({ vehicles }) => {
     }
   };
 
-  useEffect(() => {
-    let map: google.maps.Map | null = null;
-    let markers: google.maps.Marker[] = [];
-    let route: google.maps.Polyline | null = null;
+  async function geocodeAddress(
+    address: string
+  ): Promise<{
+    location_lat: number;
+    location_lon: number;
+    location_name: string;
+  }> {
+    const response = await fetch(
+      `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(
+        address
+      )}&key=AIzaSyC9ik3lucRMBrV4-uliLe2717QYUGKmIDU`
+    );
 
-    const initMap = async () => {
-      if (!window.google?.maps || !mapRef.current) return;
+    const data = await response.json();
+    if (data.status === "OK" && data.results.length > 0) {
+      const loc = data.results[0].geometry.location;
+      return {
+        location_lat: loc.lat,
+        location_lon: loc.lng,
+        location_name: data.results[0].formatted_address,
+      };
+    }
+    throw new Error("Geocoding failed");
+  }
 
-      try {
-        const trip = trips?.[0];
-        const stops = trip?.stops || [];
-        const defaultCenter = { lat: 37.0902, lng: -95.7129 };
 
-        const center =
-          stops.length > 0
-            ? { lat: stops[0].location_lat, lng: stops[0].location_lon }
-            : defaultCenter;
+useEffect(() => {
+  let map: google.maps.Map | null = null;
+  let markers: google.maps.Marker[] = [];
+  let route: google.maps.Polyline | null = null;
+  let infoWindow: google.maps.InfoWindow | null = null;
 
-        map = new window.google.maps.Map(mapRef.current, {
-          center,
-          zoom: stops.length > 0 ? 8 : 4,
-          disableDefaultUI: true,
-          gestureHandling: "cooperative",
+  const initMap = async () => {
+    if (!window.google?.maps || !mapRef.current) return;
+
+    try {
+      const trip = trips?.[0];
+      if (!trip) return;
+
+      const pickupPoint = await geocodeAddress(trip.pickup_location);
+      const dropoffPoint = await geocodeAddress(trip.dropoff_location);
+
+      const allPoints = [pickupPoint, ...trip.stops, dropoffPoint];
+
+      const defaultCenter = { lat: 37.0902, lng: -95.7129 };
+      const center =
+        allPoints.length > 0
+          ? { lat: allPoints[0].location_lat, lng: allPoints[0].location_lon }
+          : defaultCenter;
+
+      map = new window.google.maps.Map(mapRef.current, {
+        center,
+        zoom: allPoints.length > 0 ? 8 : 4,
+        disableDefaultUI: true,
+        gestureHandling: "cooperative",
+      });
+
+      infoWindow = new window.google.maps.InfoWindow();
+
+      if (allPoints.length) {
+        markers = allPoints.map((point, index) => {
+          const marker = new window.google.maps.Marker({
+            position: { lat: point.location_lat, lng: point.location_lon },
+            map,
+            title: point.location_name,
+            icon: {
+              path: window.google.maps.SymbolPath.CIRCLE,
+              fillColor:
+                index === 0
+                  ? "green"
+                  : index === allPoints.length - 1
+                  ? "red"
+                  : "#4285F4",
+              fillOpacity: 1,
+              strokeColor: "white",
+              strokeWeight: 2,
+              scale: 8,
+            },
+          });
+
+          marker.addListener("click", () => {
+            infoWindow?.setContent(`<div>${point.location_name}</div>`);
+            infoWindow?.open(map, marker);
+          });
+
+          return marker;
         });
 
-        if (stops.length) {
-          markers = stops.map(
-            (stop) =>
-              new window.google.maps.Marker({
-                position: { lat: stop.location_lat, lng: stop.location_lon },
-                map,
-                title: stop.location_name,
-                icon: {
-                  path: window.google.maps.SymbolPath.CIRCLE,
-                  fillColor: "#4285F4",
-                  fillOpacity: 1,
-                  strokeColor: "white",
-                  strokeWeight: 2,
-                  scale: 8,
-                },
-              })
-          );
+        route = new window.google.maps.Polyline({
+          path: allPoints.map((point) => ({
+            lat: point.location_lat,
+            lng: point.location_lon,
+          })),
+          geodesic: true,
+          strokeColor: "#4285F4",
+          strokeOpacity: 0.7,
+          strokeWeight: 4,
+        });
+        route.setMap(map);
 
-          route = new window.google.maps.Polyline({
-            path: stops.map((stop) => ({
-              lat: stop.location_lat,
-              lng: stop.location_lon,
-            })),
-            geodesic: true,
-            strokeColor: "#4285F4",
-            strokeOpacity: 0.7,
-            strokeWeight: 4,
-          });
-          route.setMap(map);
-
-          const bounds = new window.google.maps.LatLngBounds();
-          stops.forEach((stop) =>
-            bounds.extend(
-              new window.google.maps.LatLng(
-                stop.location_lat,
-                stop.location_lon
-              )
+        const bounds = new window.google.maps.LatLngBounds();
+        allPoints.forEach((point) =>
+          bounds.extend(
+            new window.google.maps.LatLng(
+              point.location_lat,
+              point.location_lon
             )
-          );
-          map.fitBounds(bounds);
-        }
-      } catch (error) {
-        console.error("Map initialization error:", error);
+          )
+        );
+        map.fitBounds(bounds);
       }
-    };
+    } catch (error) {
+      console.error("Map initialization error:", error);
+    }
+  };
 
-    initMap();
+  initMap();
 
-    return () => {
-      markers.forEach((m) => m.setMap(null));
-      route?.setMap(null);
-    };
-  }, [trips]);
+  return () => {
+    markers.forEach((m) => m.setMap(null));
+    route?.setMap(null);
+  };
+}, [trips]);
+
+
 
   const trip = trips ? trips[0] : null;
   const isTripActive = trip ? !!trip.start_time && !trip.completed : false;
